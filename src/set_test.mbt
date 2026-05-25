@@ -460,3 +460,36 @@ test "set from_array" {
   }
   inspect(iter.next(), content="None")
 }
+
+///|
+test "set drain" {
+  let set = @indexmap.IndexSet::new()
+  set.insert("x") |> ignore
+  set.insert("y") |> ignore
+  set.insert("z") |> ignore
+  let drained = set.drain()
+  inspect(drained.length(), content="3")
+  inspect(drained[0], content="x")
+  inspect(drained[1], content="y")
+  inspect(drained[2], content="z")
+  inspect(set.is_empty(), content="true")
+}
+
+///|
+test "set drain empty" {
+  let set = @indexmap.IndexSet::new()
+  let drained = set.drain()
+  inspect(drained.length(), content="0")
+}
+
+///|
+test "set extend" {
+  let set = @indexmap.IndexSet::new()
+  set.insert("existing") |> ignore
+  set.extend(["a", "b", "c"])
+  inspect(set.len(), content="4")
+  inspect(set.contains("existing"), content="true")
+  inspect(set.contains("a"), content="true")
+  inspect(set.contains("b"), content="true")
+  inspect(set.contains("c"), content="true")
+}
