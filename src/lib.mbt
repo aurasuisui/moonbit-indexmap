@@ -31,6 +31,10 @@
 // ```
 
 ///|
+/// Library version string.
+pub const VERSION : String = "0.1.0"
+
+///|
 /// Create a new, empty IndexMap.
 pub fn[K, V] new() -> IndexMap[K, V] {
   IndexMap::new()

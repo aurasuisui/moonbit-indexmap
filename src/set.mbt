@@ -29,6 +29,20 @@ pub fn[K] IndexSet::with_capacity(cap : Int) -> IndexSet[K] {
   { inner: IndexMap::with_capacity(cap) }
 }
 
+///|
+/// Create an IndexSet from an array of elements.
+pub fn[K : Hash + Eq] IndexSet::from_array(
+  elements : Array[K],
+) -> IndexSet[K] {
+  let set = IndexSet::with_capacity(elements.length())
+  let mut i = 0
+  while i < elements.length() {
+    set.insert(elements[i]) |> ignore
+    i = i + 1
+  }
+  set
+}
+
 // ---------------------------------------------------------------------------
 // Size queries
 // ---------------------------------------------------------------------------
