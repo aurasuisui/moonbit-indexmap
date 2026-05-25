@@ -436,3 +436,27 @@ test "set is_empty after all operations" {
   set.remove("y") |> ignore
   inspect(set.is_empty(), content="true")
 }
+
+///|
+test "set from_array" {
+  let set = @indexmap.IndexSet::from_array(["c", "a", "b"])
+  inspect(set.len(), content="3")
+  inspect(set.contains("a"), content="true")
+  inspect(set.contains("b"), content="true")
+  inspect(set.contains("c"), content="true")
+  inspect(set.contains("d"), content="false")
+  let iter = set.iter()
+  match iter.next() {
+    Some(k) => inspect(k, content="c")
+    None => @test.fail("expected c")
+  }
+  match iter.next() {
+    Some(k) => inspect(k, content="a")
+    None => @test.fail("expected a")
+  }
+  match iter.next() {
+    Some(k) => inspect(k, content="b")
+    None => @test.fail("expected b")
+  }
+  inspect(iter.next(), content="None")
+}
