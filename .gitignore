@@ -1,0 +1,18 @@
+# MoonBit build artifacts
+_build/
+*.core
+*.mi
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Dependencies
+moon-cache/

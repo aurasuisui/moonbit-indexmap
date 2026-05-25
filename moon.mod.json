@@ -1,0 +1,10 @@
+{
+    "name": "indexmap",
+    "version": "0.1.0",
+    "readme": "README.md",
+    "repository": "",
+    "license": "Apache-2.0",
+    "keywords": ["hashmap", "indexmap", "ordered", "data-structure"],
+    "description": "A hash map that preserves insertion order - MoonBit port of Rust's indexmap",
+    "source": "src"
+}
