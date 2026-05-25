@@ -33,7 +33,7 @@ Add to your `moon.mod.json`:
 Or clone directly:
 
 ```bash
-git clone https://github.com/moonbit-indexmap.git
+git clone https://github.com/aurasuisui/moonbit-indexmap
 ```
 
 ## Quick Start
