@@ -1267,3 +1267,8 @@ test "resize during insert triggers rehash" {
   inspect(map.capacity() > 2, content="true")
   inspect(map.len(), content="3")
 }
+
+///|
+test "library version" {
+  inspect(@indexmap.VERSION, content="0.1.0")
+}
