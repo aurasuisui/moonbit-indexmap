@@ -181,6 +181,7 @@ println("is subset: \{set.is_subset(other)}")
 |--------|-------------|
 | `new() -> IndexSet[K]` | Create empty set |
 | `with_capacity(n : Int) -> IndexSet[K]` | Create with pre-allocated capacity |
+| `from_array(elements : Array[K]) -> IndexSet[K]` | Create from an array of elements |
 | `len() -> Int` | Number of elements |
 | `is_empty() -> Bool` | Whether set is empty |
 | `capacity() -> Int` | Current capacity |
@@ -190,6 +191,8 @@ println("is subset: \{set.is_subset(other)}")
 | `clear()` | Remove all elements |
 | `iter() -> Keys[K, Unit]` | Iterate in insertion order |
 | `retain(f : (K) -> Bool)` | Keep elements matching predicate |
+| `drain() -> Array[K]` | Remove all elements, return as array |
+| `extend(elements : Array[K])` | Insert all elements from array |
 | `is_disjoint(other : IndexSet[K]) -> Bool` | No common elements |
 | `is_subset(other : IndexSet[K]) -> Bool` | All elements in other |
 | `is_superset(other : IndexSet[K]) -> Bool` | Contains all of other |
