@@ -169,6 +169,34 @@ pub fn[K : Hash + Eq] IndexSet::retain(
   self.inner.retain(fn(k, _) { f(k) })
 }
 
+///|
+/// Drain all elements from the set, returning them in insertion order.
+pub fn[K : Hash + Eq] IndexSet::drain(self : IndexSet[K]) -> Array[K] {
+  let result = []
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some(k) => result.push(k)
+      None => break
+    }
+  }
+  self.clear()
+  result
+}
+
+///|
+/// Extend the set with elements from an array.
+pub fn[K : Hash + Eq] IndexSet::extend(
+  self : IndexSet[K],
+  elements : Array[K],
+) -> Unit {
+  let mut i = 0
+  while i < elements.length() {
+    self.insert(elements[i]) |> ignore
+    i = i + 1
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Trait implementations
 // ---------------------------------------------------------------------------
