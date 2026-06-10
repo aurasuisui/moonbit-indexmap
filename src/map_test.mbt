@@ -935,7 +935,7 @@ test "sort_by_key on empty map" {
 ///|
 test "sort_by on empty map" {
   let map = @indexmap.new()
-  map.sort_by(fn(e1, e2) { 0 })
+  map.sort_by(fn(_e1, _e2) { 0 })
   inspect(map.is_empty(), content="true")
 }
 
@@ -1271,4 +1271,64 @@ test "resize during insert triggers rehash" {
 ///|
 test "library version" {
   inspect(@indexmap.VERSION, content="0.1.0")
+}
+
+///|
+test "IndexMap Default trait" {
+  let map : @indexmap.IndexMap[String, Int] = @indexmap.IndexMap::default()
+  inspect(map.is_empty(), content="true")
+  inspect(map.len(), content="0")
+}
+
+///|
+test "IndexMap copy preserves entries and order" {
+  let map = @indexmap.new()
+  map.insert("b", 2) |> ignore
+  map.insert("a", 1) |> ignore
+  map.insert("c", 3) |> ignore
+  let copy = map.copy()
+  inspect(copy.len(), content="3")
+  inspect(copy.get("a"), content="Some(1)")
+  inspect(copy.get("b"), content="Some(2)")
+  inspect(copy.get("c"), content="Some(3)")
+  let entries = copy.iter().collect()
+  inspect(entries[0], content="(b, 2)")
+  inspect(entries[1], content="(a, 1)")
+  inspect(entries[2], content="(c, 3)")
+}
+
+///|
+test "IndexMap get_mut modifies value" {
+  let map = @indexmap.new()
+  map.insert("key", 1) |> ignore
+  map.get_mut("key", fn(v) { match v { Some(x) => Some(x + 10); None => None } })
+  inspect(map.get("key"), content="Some(11)")
+}
+
+///|
+test "IndexMap get_mut on missing key" {
+  let map = @indexmap.new()
+  map.get_mut("missing", fn(_v) { None })
+}
+
+///|
+test "IndexMap into_iter consumes map" {
+  let map = @indexmap.new()
+  map.insert(1, "a") |> ignore
+  map.insert(2, "b") |> ignore
+  let iter = map.into_iter()
+  inspect(iter.next(), content="Some((1, a))")
+  inspect(iter.next(), content="Some((2, b))")
+  inspect(iter.next(), content="None")
+}
+
+///|
+test "IndexMap into_array consumes all entries" {
+  let map = @indexmap.new()
+  map.insert(1, "a") |> ignore
+  map.insert(2, "b") |> ignore
+  let arr = map.into_array()
+  inspect(arr.length(), content="2")
+  inspect(arr[0], content="(1, a)")
+  inspect(arr[1], content="(2, b)")
 }

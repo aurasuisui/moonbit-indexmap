@@ -46,7 +46,6 @@ test "property: remove reduces len by 1" {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  let before = map.len()
   map.remove(50) |> ignore
   inspect(map.len(), content="99")
 }
@@ -270,7 +269,6 @@ test "property: swap_remove maintains len minus 1" {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  let before = map.len()
   map.swap_remove_index(50) |> ignore
   inspect(map.len(), content="99")
 }

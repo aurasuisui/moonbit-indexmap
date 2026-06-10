@@ -6,7 +6,7 @@
 - **参赛者**：徐家宝
 - **联系方式**：18267593686
 - **GitHub 仓库链接**：https://github.com/aurasuisui/moonbit-indexmap
-- **Gitlink 仓库链接**：（GitHub 同步后填写）
+- **Gitlink 仓库链接**：https://gitlink.org.cn/aurasuisui/moonbit-indexmap
 - **项目方向**：基础数据结构与算法 / MoonBit 标准库补全
 - **是否为移植项目**：是
 

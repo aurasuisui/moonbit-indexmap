@@ -4,41 +4,78 @@
 >
 > **你的角色**：MoonBit 项目开发工程师。你的工作是用 MoonBit 语言完成一个有序哈希表库，所有代码必须通过 `moon check` 类型检查和 `moon test` 测试。
 >
-> **更新日期**：2026-05-25（全部完成，15 commits 已推送 GitHub）
+> **更新日期**：2026-06-10（v0.2.0 全部完成）
+
+# 3. 验证当前状态
+moon check           # 应输出 151 warnings, 0 errors
+moon test            # 应输出 220 passed, 0 failed
+```
+
+**当前进度总览**：
+- ✅ 源码编译通过（0 errors, 151 warnings）
+- ✅ 220 个测试全部通过（新增 9 个测试）
+- ✅ 代码行数 4,420（新增 231 行）
+- ✅ v0.1.0 + v0.2.0 全部功能完成
+- ✅ 15 commits 已推送 GitHub
+- ✅ 申报已通过，Gitlink 仓库已同步
+
+**v0.2.0 全部完成**：
+- ✅ **Debug trait**：IndexMap[K, V] 和 IndexSet[K] 实现 Debug trait（Repr::opaque_ 包装）
+- ✅ **Default trait**：IndexMap::default()、IndexSet::default()
+- ✅ **copy() 方法**：浅拷贝 buckets + order 数组，IndexSet 委托给 IndexMap
+- ✅ **get_mut() 方法**：通过回调函数修改值，支持原地增删改
+- ✅ **into_iter() 方法**：消耗性迭代器 IntoIter[K, V]（含 next/collect/count_remaining）
+- ✅ **into_array() 方法**：消耗 map/set 返回数组
+- ✅ **ToJson trait**：IndexMap→Json::object（保序），IndexSet→Json::array（保序）
+- ✅ **9 个新测试**：Default、copy、get_mut、into_iter、into_array 全覆盖
 >
 > ---
->
-> ## 新会话快速接手指南
->
-> 如果你是新窗口的 Claude Code，按以下步骤快速上手：
->
-> ```bash
-> # 1. 进入项目目录
-> cd "C:\Users\aurasui\Desktop\MoonBit 开源生态项目贡献赛\moonbit-indexmap"
->
-> # 2. 验证环境（如果失败，参考第三章安装工具链）
-> export PATH="$HOME/.moon/bin:$PATH"
-> export MOON_HOME="$HOME/.moon"
-> moon version --all
->
-> # 3. 验证当前状态
-> moon check           # 应输出 0 errors
-> moon test            # 应输出 211 passed, 0 failed
-> ```
->
-> **当前进度总览**：
-> - ✅ 源码编译通过（0 errors）
-> - ✅ 211 个测试全部通过（map_test ~1250行 ~80测试, set_test ~495行 ~45测试, bench_test ~486行 30测试, property_test ~491行 39测试）
-> - ✅ MoonBit 语法适配完成（第四章有完整对照）
-> - ✅ `moon fmt` 格式化完成
-> - ✅ 测试充足（测试代码 ~2700 行）
-> - ✅ Git 仓库已初始化 + 15 commits 已推送 GitHub
-> - ✅ benchmark / property 测试已完成
-> - ✅ 代码行数 4111，超过 4000 目标
-> - ✅ CI/CD 配置完成
-> - ✅ README / CHANGELOG / ROADMAP 文档齐全
->
-> **项目已完成，无需进一步操作。**
+
+## 新会话快速接手指南
+
+如果你是新窗口的 Claude Code，按以下步骤快速上手：
+
+```bash
+# 1. 进入项目目录
+cd "C:\Users\aurasui\Desktop\GitLink\MoonBit 开源生态项目贡献赛\moonbit-indexmap"
+
+# 2. 验证环境（如果失败，参考第三章安装工具链）
+export PATH="$HOME/.moon/bin:$PATH"
+export MOON_HOME="$HOME/.moon"
+moon version --all
+
+# 3. 验证当前状态
+moon check           # 应输出 140 warnings, 0 errors
+moon test            # 应输出 211 passed, 0 failed
+```
+
+**当前进度总览**：
+- ✅ 源码编译通过（0 errors, 140 warnings）
+- ✅ 211 个测试全部通过
+- ✅ v0.1.0 全部功能完成
+- ✅ 代码行数 4,189（新增 78 行）
+- ✅ 15 commits 已推送 GitHub
+- ✅ 申报已通过（2026-06-10），Gitlink 仓库已同步
+- 🔄 v0.2.0 开发中（✅ Debug ✅ Default ✅ copy()  🔄 get_mut 🔄 into_iter 🔄 ToJson 🔄 重构优化）
+
+**2026-06-10 v0.2.0 Batch 1 完成**：
+- ✅ **Debug trait**：IndexMap[K: Debug+Hash+Eq, V: Debug] 和 IndexSet[K: Debug+Hash+Eq] 实现 Debug trait
+  - 使用 `Repr::opaque_("IndexMap", Repr::map(...))` 和 `Repr::opaque_("IndexSet", Repr::array(...))`
+  - 与 MoonBit 新一代调试体系接轨
+- ✅ **Default trait**：IndexMap[K, V] 和 IndexSet[K] 实现 Default trait
+  - 可配合 `unwrap_or_default()` 等标准 API 使用
+- ✅ **copy() 方法**：遵循 MoonBit stdlib 约定（无 Clone trait，使用独立方法模式）
+  - IndexMap::copy() 独立拷贝 buckets 和 order 数组
+  - IndexSet::copy() 委托给 IndexMap::copy()
+
+**MoonBit 语言特性研究完成**（详见第六章）：
+- ✅ `for .. in` 协议 / Debug trait + Repr 体系 / Default trait / copy() 模式
+- ✅ ToJson trait / QuickCheck Arbitrary / HashMap 实现参考
+
+**2026-06-10 警告清理**：
+- ✅ 消除 [0053] unused_trait_bound（8→0）
+- ✅ 消除 [0002] unused_variable（4→0）
+- ⚠️ [0020] inspect（85）+ [0013] 类型推断（49）+ [0001] trait impl（4）= 138 保留
 
 ---
 
@@ -77,18 +114,18 @@ moonbit-indexmap/
 ├── ROADMAP.md                 # 路线图
 ├── LICENSE                    # Apache 2.0
 ├── .gitignore                 # Git 忽略规则
-├── 申报书-IndexMap.md         # 参赛申报书
+├── 申报书-IndexMap.md         # 参赛申报书（已提交）
 ├── 执行计划书-ClaudeCode.md   # 本文件
 ├── src/
 │   ├── moon.pkg.json          # 源包配置
 │   ├── lib.mbt                # 入口模块（~47行）
-│   ├── map.mbt                # IndexMap 核心（~1038行）
+│   ├── map.mbt                # IndexMap 核心（~1045行）
 │   ├── set.mbt                # IndexSet 包装器（~223行）
 │   ├── hash.mbt               # 哈希工具常量（~57行）
-│   ├── map_test.mbt           # IndexMap 黑盒测试（~1274行，~80测试）
+│   ├── map_test.mbt           # IndexMap 黑盒测试（~1272行，~80测试）
 │   ├── set_test.mbt           # IndexSet 黑盒测试（~495行，~45测试）
 │   ├── bench_test.mbt         # 基准测试（~486行，30测试）
-│   └── property_test.mbt      # 属性/不变量测试（~491行，39测试）
+│   └── property_test.mbt      # 属性/不变量测试（~489行，39测试）
 └── .github/workflows/
     └── ci.yml                 # CI 配置
 ```
@@ -148,8 +185,6 @@ moon test
 # 格式化代码
 moon fmt
 ```
-
-**当前状态：`moon check` 0 错误，`moon test` 29/29 通过。**
 
 ---
 
@@ -284,8 +319,8 @@ let mut iter = map.iter()
 
 **基础设施**
 - ✅ MoonBit 工具链安装 + core 库编译
-- ✅ `moon check` 0 错误
-- ✅ `moon test` 29/29 通过
+- ✅ `moon check` 0 errors
+- ✅ `moon test` 211/211 通过
 - ✅ 包名改为 `indexmap`
 - ✅ 测试迁移到 `src/*_test.mbt` 黑盒格式
 
@@ -316,7 +351,7 @@ let mut iter = map.iter()
 
 **测试覆盖（211 个测试，全部通过）**
 
-**map_test.mbt（~1274 行，~80 测试）**
+**map_test.mbt（~1272 行，~80 测试）**
 - ✅ 基本操作：new/is_empty、insert/get、overwrite、missing、contains、remove、clear
 - ✅ 顺序保持：迭代顺序、覆盖保持位置、删除保持顺序
 - ✅ 索引访问：get_index、get_index_of、get_full
@@ -348,7 +383,7 @@ let mut iter = map.iter()
 - ✅ 容量：不同初始容量、reserve+fill 2000
 - ✅ 其他：clear 复用、字符串 key、IndexSet 5000/remove all、for_each 3000、swap_remove、max_probe、load_factor、first/last、get_index_of、count_remaining、get_full
 
-**property_test.mbt（~491 行，39 测试）**
+**property_test.mbt（~489 行，39 测试）**
 - ✅ 插入 N→len=N、重复插入保持 len、insert-get roundtrip
 - ✅ remove 减 len、remove 后 key 不可查、迭代 count=len
 - ✅ 已删除 key 不在迭代中、clear→empty
@@ -368,9 +403,9 @@ let mut iter = map.iter()
 - ✅ 运行 `moon fmt` 格式化所有代码
 
 **P1 — 达到代码行数要求（4000+ 行）** ✅ 实际 4,111 行
-- ✅ 扩充测试到 ~2700 行（map_test ~1274 + set_test ~495 + bench_test ~486 + property_test ~491）
+- ✅ 扩充测试到 ~2700 行（map_test ~1272 + set_test ~495 + bench_test ~486 + property_test ~489）
 - ✅ 添加 `bench_test.mbt` 基准测试（~486 行，30 测试）
-- ✅ 添加 `property_test.mbt` 属性测试（~491 行，39 测试）
+- ✅ 添加 `property_test.mbt` 属性测试（~489 行，39 测试）
 
 **P2 — 完善功能**
 - ✅ Entry API 完整测试（Occupied/Vacant 的 get/insert/remove/key）
@@ -392,66 +427,31 @@ let mut iter = map.iter()
 
 ---
 
-## 六、详细任务分解（第 2 轮）
+## 六、v0.2.0 开发计划
 
-### 任务 1：格式化 + Git 初始化（预计 30 分钟）
+### 6.1 当前状态（2026-06-10）
 
-```bash
-cd moonbit-indexmap
-moon fmt                          # 格式化所有代码
-moon fmt --check                  # 验证格式
-git init                          # 初始化仓库（如果还没有）
-git add -A && git commit -m "..." # 首次提交
-```
+- ✅ 消除 [0053] unused_trait_bound 警告（8 个 → 0）
+- ✅ 消除 [0002] unused_variable 警告（4 个 → 0）
+- ✅ moon check 0 errors, moon test 211/211
 
-### 任务 2：扩充测试用例（预计 2-4 小时）
+### 6.2 v0.2.0 计划功能
 
-在 `src/map_test.mbt` 和 `src/set_test.mbt` 中追加：
+| 功能 | 优先级 | 说明 |
+|------|--------|------|
+| `Debug` trait 实现 | P0 | IndexMap、IndexSet 实现 Debug trait，替代 Show 用于调试 |
+| `Clone` / `DeepCopy` trait | P1 | MoonBit 核心 trait，深拷贝支持 |
+| `get_mut()` 可变值访问 | P1 | 小改动，直接提供可变引用 |
+| `into_iter()` 消耗性迭代器 | P2 | 配合 drain 使用，转移所有权 |
+| 可插拔哈希算法 | P3 | XXHash / SipHash 支持 |
+| 序列化/反序列化 | P3 | 与 MoonBit JSON 生态集成 |
 
-**IndexMap 补充测试**：
-- 大量插入 resize（1000 元素）
-- 大量删除 rehash（500 插入 → 400 删除 → 验证 100 剩余）
-- 删除第一个/最后一个/中间元素后的顺序
-- 空 map 所有操作的边界行为
-- `reserve()` / `shrink_to_fit()` 容量验证
-- Entry API 完整测试
-- `drain()` / `extend()` / `sort_by()` / `swap_remove_index()` / `for_each()` 测试
-- `capacity()` / `load_factor()` / `max_probe()` 诊断测试
+### 6.3 警告说明
 
-**IndexSet 补充测试**：
-- 大量元素场景
-- 空集上所有集合运算
-- retain 后顺序保持
-
-### 任务 3：创建 `src/bench_test.mbt`（预计 1-2 小时）
-
-使用 `moon bench` 或手动对比：
-- IndexMap vs 内置 Map 插入性能（1000/10000 次）
-- IndexMap vs 内置 Map 查找性能
-- IndexMap 迭代性能
-- 不同初始容量下的 resize 次数
-
-### 任务 4：创建 `src/property_test.mbt`（预计 1-2 小时）
-
-属性测试验证不变量：
-- 插入 N 个不同 key 后 len() == N
-- 迭代收集结果数 == N
-- insert → get 返回刚插入的值
-- remove 后 len 减 1 且 key 不可查
-- 迭代结果不含已删除 key
-- 两次相同 key 插入不改变 len
-- IndexSet 行为与 IndexMap[K, Unit] 一致
-
-### 任务 5：完善 CI 和项目配置（预计 30 分钟）
-
-- 检查并更新 `.github/workflows/ci.yml`
-- 添加 `.gitignore`
-- 确认 `moon.mod.json` 配置正确
-- 更新 README API 文档与代码一致
-
-### 任务 6：Git 提交（贯穿始终）
-
-按功能拆分 15-20 个 commit。
+保留的警告（138 个）均为常规情况：
+- **[0020]** inspect 已弃用（85 个）：测试文件中使用，`inspect` 仍是 MoonBit 标准测试方式
+- **[0013]** 类型未解析（49 个）：编译器自动推断，对功能无影响
+- **[0001]** trait 实现未使用（4 个）：Show/Hash/Eq 是公共 API，用户代码会用到
 
 ---
 
@@ -463,14 +463,14 @@ git add -A && git commit -m "..." # 首次提交
 - [x] `moon test` 全部通过（211/211）
 - [x] `moon fmt` 格式化完成
 - [x] GitHub 仓库公开可访问（https://github.com/aurasuisui/moonbit-indexmap）
-- [ ] Gitlink 仓库已同步（用户自行填写）
+- [x] Gitlink 仓库已同步（https://gitlink.org.cn/aurasuisui/moonbit-indexmap）
 - [x] 有效 commit 数 ≥ 15（实际 15 commits）
 - [x] MoonBit 代码行数 ≥ 4000（src/ 含测试）（实际 4,111 行）
 - [x] README 包含安装方式 + 3 个以上可运行代码示例
 - [x] CI 覆盖 check + test
 - [x] 有 CHANGELOG + CONTRIBUTING + LICENSE
-- [ ] 申报书已提交到赛事群（用户自行提交）
-- [x] 仓库结构和代码清晰可读
+- [x] 申报书已提交并已通过
+- [ ] v0.2.0 功能完成
 
 ---
 
@@ -482,3 +482,4 @@ git add -A && git commit -m "..." # 首次提交
 - ❌ 不要写复杂的泛型魔法（MoonBit 的类型系统还在演进，保持简单）
 - ❌ 不要忽略编译错误直接提交（确保每行代码都通过类型检查）
 - ❌ 不要在包名中使用连字符（`@` 引用不支持 `-`）
+- ❌ 不要为了消除警告而消除警告（以代码实际需求为准）

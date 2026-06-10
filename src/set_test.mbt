@@ -493,3 +493,41 @@ test "set extend" {
   inspect(set.contains("b"), content="true")
   inspect(set.contains("c"), content="true")
 }
+
+///|
+test "IndexSet Default trait" {
+  let set : @indexmap.IndexSet[String] = @indexmap.IndexSet::default()
+  inspect(set.is_empty(), content="true")
+  inspect(set.len(), content="0")
+}
+
+///|
+test "IndexSet copy preserves elements and order" {
+  let set = @indexmap.IndexSet::new()
+  set.insert("b") |> ignore
+  set.insert("a") |> ignore
+  set.insert("c") |> ignore
+  let copy = set.copy()
+  inspect(copy.len(), content="3")
+  inspect(copy.contains("a"), content="true")
+  inspect(copy.contains("b"), content="true")
+  inspect(copy.contains("c"), content="true")
+  let iter = copy.iter()
+  inspect(iter.next(), content="Some(b)")
+  inspect(iter.next(), content="Some(a)")
+  inspect(iter.next(), content="Some(c)")
+  inspect(iter.next(), content="None")
+}
+
+///|
+test "IndexSet into_array consumes all elements" {
+  let set = @indexmap.IndexSet::new()
+  set.insert(1) |> ignore
+  set.insert(2) |> ignore
+  set.insert(3) |> ignore
+  let arr = set.into_array()
+  inspect(arr.length(), content="3")
+  inspect(arr[0], content="1")
+  inspect(arr[1], content="2")
+  inspect(arr[2], content="3")
+}

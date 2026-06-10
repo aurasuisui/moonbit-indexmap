@@ -39,6 +39,13 @@ struct Iter[K, V] {
 }
 
 ///|
+/// A consuming iterator over (key, value) pairs in insertion order.
+struct IntoIter[K, V] {
+  entries : Array[(K, V)]
+  mut pos : Int
+}
+
+///|
 /// A key iterator over keys in insertion order.
 struct Keys[K, V] {
   map : IndexMap[K, V]
@@ -102,7 +109,7 @@ fn next_power_of_two_impl(n : Int) -> Int {
 
 ///|
 /// Simple probe to find an existing key.
-fn[K : Hash + Eq, V] IndexMap::probe_find(
+fn[K : Eq, V] IndexMap::probe_find(
   self : IndexMap[K, V],
   key : K,
   hash : Int,
@@ -129,7 +136,7 @@ fn[K : Hash + Eq, V] IndexMap::probe_find(
 
 ///|
 /// Find a bucket using Robin Hood hashing.
-fn[K : Hash + Eq, V] IndexMap::robin_hood_find(
+fn[K : Eq, V] IndexMap::robin_hood_find(
   self : IndexMap[K, V],
   key : K,
   hash : Int,
@@ -170,7 +177,7 @@ fn[K : Hash + Eq, V] IndexMap::robin_hood_find(
 
 ///|
 /// Find a bucket — same as robin_hood_find but named for clarity.
-fn[K : Hash + Eq, V] IndexMap::robin_hood_find_or_insertion_point(
+fn[K : Eq, V] IndexMap::robin_hood_find_or_insertion_point(
   self : IndexMap[K, V],
   key : K,
   hash : Int,
@@ -388,6 +395,11 @@ pub fn[K, V] IndexMap::new() -> IndexMap[K, V] {
 }
 
 ///|
+pub impl[K, V] Default for IndexMap[K, V] with default() {
+  IndexMap::new()
+}
+
+///|
 /// Create a new IndexMap with the given initial capacity.
 pub fn[K, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
   let real_cap = if cap < MIN_CAPACITY {
@@ -501,6 +513,43 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
 }
 
 ///|
+/// Get a mutable reference to the value associated with `key` via callback.
+/// The callback receives `Some(value)` if the key exists, or `None` if not.
+/// Changes to the value in the callback are written back to the map.
+pub fn[K : Hash + Eq, V] IndexMap::get_mut(
+  self : IndexMap[K, V],
+  key : K,
+  f : (V?) -> V?,
+) -> Unit {
+  let hash = key.hash()
+  let (idx, found) = self.probe_find(key, hash)
+  if found {
+    match self.buckets[idx] {
+      Some(entry) => match f(Some(entry.value)) {
+        Some(new_val) => {
+          let new_entry = {
+            key: entry.key,
+            value: new_val,
+            hash: entry.hash,
+            distance: entry.distance,
+          }
+          self.buckets[idx] = Some(new_entry)
+        }
+        None => {
+          self.buckets[idx] = None
+          self.remove_from_order(key)
+          self.tombstone_count = self.tombstone_count + 1
+          self.len = self.len - 1
+        }
+      }
+      None => f(None) |> ignore
+    }
+  } else {
+    f(None) |> ignore
+  }
+}
+
+///|
 /// Get a value associated with `key`.
 pub fn[K : Hash + Eq, V] IndexMap::get(self : IndexMap[K, V], key : K) -> V? {
   let hash = key.hash()
@@ -564,6 +613,31 @@ pub fn[K, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
   self.len = 0
   self.tombstone_count = 0
   self.max_probe_distance = 0
+}
+
+///|
+/// Create a shallow copy of this IndexMap, preserving insertion order.
+pub fn[K, V] IndexMap::copy(self : IndexMap[K, V]) -> IndexMap[K, V] {
+  let new_buckets : Array[Entry[K, V]?] = []
+  let mut i = 0
+  while i < self.buckets.length() {
+    new_buckets.push(self.buckets[i])
+    i = i + 1
+  }
+  let new_order : Array[K] = []
+  i = 0
+  while i < self.order.length() {
+    new_order.push(self.order[i])
+    i = i + 1
+  }
+  {
+    buckets: new_buckets,
+    order: new_order,
+    len: self.len,
+    mask: self.mask,
+    tombstone_count: self.tombstone_count,
+    max_probe_distance: self.max_probe_distance,
+  }
 }
 
 ///|
@@ -654,7 +728,7 @@ pub fn[K, V] OccupiedEntry::key(self : OccupiedEntry[K, V]) -> K {
 
 ///|
 /// Insert a value into this vacant entry, returning the value inserted.
-pub fn[K : Hash + Eq, V] VacantEntry::insert(
+pub fn[K, V] VacantEntry::insert(
   self : VacantEntry[K, V],
   value : V,
 ) -> V {
@@ -705,7 +779,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get_full(
 
 ///|
 /// Get the insertion-order index of the given key.
-pub fn[K : Hash + Eq, V] IndexMap::get_index_of(
+pub fn[K : Eq, V] IndexMap::get_index_of(
   self : IndexMap[K, V],
   key : K,
 ) -> Int? {
@@ -789,7 +863,7 @@ pub fn[K : Hash + Eq, V] IndexMap::pop(self : IndexMap[K, V]) -> (K, V)? {
 
 ///|
 /// Return an iterator over (key, value) pairs in insertion order.
-pub fn[K : Hash + Eq, V] IndexMap::iter(self : IndexMap[K, V]) -> Iter[K, V] {
+pub fn[K, V] IndexMap::iter(self : IndexMap[K, V]) -> Iter[K, V] {
   { map: self, pos: 0 }
 }
 
@@ -801,7 +875,7 @@ pub fn[K, V] IndexMap::keys(self : IndexMap[K, V]) -> Keys[K, V] {
 
 ///|
 /// Return an iterator over values in insertion order.
-pub fn[K : Hash + Eq, V] IndexMap::values(
+pub fn[K, V] IndexMap::values(
   self : IndexMap[K, V],
 ) -> Values[K, V] {
   { map: self, pos: 0 }
@@ -877,6 +951,35 @@ pub fn[K : Hash + Eq, V] Iter::count_remaining(self : Iter[K, V]) -> Int {
 }
 
 ///|
+/// Advance the consuming iterator.
+pub fn[K, V] IntoIter::next(self : IntoIter[K, V]) -> (K, V)? {
+  if self.pos >= self.entries.length() {
+    return None
+  }
+  let entry = self.entries[self.pos]
+  self.pos = self.pos + 1
+  Some(entry)
+}
+
+///|
+/// Collect all remaining entries from the consuming iterator.
+pub fn[K, V] IntoIter::collect(self : IntoIter[K, V]) -> Array[(K, V)] {
+  let result = []
+  let mut i = self.pos
+  while i < self.entries.length() {
+    result.push(self.entries[i])
+    i = i + 1
+  }
+  result
+}
+
+///|
+/// Return the number of entries remaining in the consuming iterator.
+pub fn[K, V] IntoIter::count_remaining(self : IntoIter[K, V]) -> Int {
+  self.entries.length() - self.pos
+}
+
+///|
 /// Apply a function to each (key, value) pair in insertion order.
 pub fn[K : Hash + Eq, V] IndexMap::for_each(
   self : IndexMap[K, V],
@@ -928,6 +1031,22 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
 }
 
 ///|
+/// Consume the map and return an iterator over (key, value) pairs.
+pub fn[K : Hash + Eq, V] IndexMap::into_iter(
+  self : IndexMap[K, V],
+) -> IntoIter[K, V] {
+  { entries: self.drain(), pos: 0 }
+}
+
+///|
+/// Consume the map and return its entries as an array in insertion order.
+pub fn[K : Hash + Eq, V] IndexMap::into_array(
+  self : IndexMap[K, V],
+) -> Array[(K, V)] {
+  self.drain()
+}
+
+///|
 /// Sort the map's entries using a custom comparison function.
 pub fn[K : Hash + Eq, V] IndexMap::sort_by(
   self : IndexMap[K, V],
@@ -974,6 +1093,13 @@ pub fn[K : Hash + Eq, V] IndexMap::extend(
 
 ///|
 /// Show implementation for debugging IndexMap contents.
+/// **Example:**
+/// ```
+/// let map = IndexMap::new()
+/// map.insert("a", 1)
+/// map.insert("b", 2)
+/// map.to_string() |> ignore
+/// ```
 impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V] with fn output(
   self,
   logger,
@@ -996,6 +1122,22 @@ impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V] with fn output(
     }
   }
   logger.write_string("}")
+}
+
+///|
+/// Debug implementation for IndexMap (insertion order).
+impl[K : Debug + Hash + Eq, V : Debug] Debug for IndexMap[K, V] with to_repr(self) {
+  let entries : Array[(Repr, Repr)] = []
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some((k, v)) => {
+        entries.push((to_repr(k), to_repr(v)))
+      }
+      None => break
+    }
+  }
+  Repr::opaque_("IndexMap", Repr::map(entries))
 }
 
 ///|
@@ -1035,4 +1177,20 @@ impl[K : Hash + Eq, V : Eq] Eq for IndexMap[K, V] with fn equal(self, other) {
     }
   }
   false
+}
+
+///|
+/// Serialize an IndexMap to JSON, preserving insertion order.
+impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with to_json(self) {
+  let obj : Map[String, Json] = Map::new()
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some((k, v)) => {
+        obj[k.to_json().to_string()] = v.to_json()
+      }
+      None => break
+    }
+  }
+  Json::object(obj)
 }

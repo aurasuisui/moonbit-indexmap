@@ -24,6 +24,11 @@ pub fn[K] IndexSet::new() -> IndexSet[K] {
 }
 
 ///|
+pub impl[K] Default for IndexSet[K] with default() {
+  IndexSet::new()
+}
+
+///|
 /// Create a new IndexSet with the given initial capacity.
 pub fn[K] IndexSet::with_capacity(cap : Int) -> IndexSet[K] {
   { inner: IndexMap::with_capacity(cap) }
@@ -101,6 +106,26 @@ pub fn[K] IndexSet::clear(self : IndexSet[K]) -> Unit {
   self.inner.clear()
 }
 
+///|
+/// Create a shallow copy of this IndexSet, preserving insertion order.
+pub fn[K] IndexSet::copy(self : IndexSet[K]) -> IndexSet[K] {
+  { inner: self.inner.copy() }
+}
+
+///|
+/// Consume the set and return its elements as an array in insertion order.
+pub fn[K : Hash + Eq] IndexSet::into_array(self : IndexSet[K]) -> Array[K] {
+  let pairs = self.inner.drain()
+  let result : Array[K] = []
+  let mut i = 0
+  while i < pairs.length() {
+    let (k, _) = pairs[i]
+    result.push(k)
+    i = i + 1
+  }
+  result
+}
+
 // ---------------------------------------------------------------------------
 // Set operations
 // ---------------------------------------------------------------------------
@@ -152,7 +177,7 @@ pub fn[K : Hash + Eq] IndexSet::is_superset(
 
 ///|
 /// Return an iterator over elements in insertion order.
-pub fn[K : Hash + Eq] IndexSet::iter(self : IndexSet[K]) -> Keys[K, Unit] {
+pub fn[K] IndexSet::iter(self : IndexSet[K]) -> Keys[K, Unit] {
   self.inner.keys()
 }
 
@@ -220,4 +245,34 @@ impl[K : Show + Hash + Eq] Show for IndexSet[K] with fn output(self, logger) {
     }
   }
   logger.write_string("}")
+}
+
+///|
+/// Debug implementation for IndexSet (insertion order).
+impl[K : Debug + Hash + Eq] Debug for IndexSet[K] with to_repr(self) {
+  let elements : Array[Repr] = []
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some(k) => {
+        elements.push(to_repr(k))
+      }
+      None => break
+    }
+  }
+  Repr::opaque_("IndexSet", Repr::array(elements))
+}
+
+///|
+/// Serialize an IndexSet to JSON, preserving insertion order.
+impl[K : ToJson + Hash + Eq] ToJson for IndexSet[K] with to_json(self) {
+  let arr : Array[Json] = []
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some(k) => arr.push(k.to_json())
+      None => break
+    }
+  }
+  Json::array(arr)
 }

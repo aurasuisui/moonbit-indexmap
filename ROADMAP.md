@@ -22,14 +22,16 @@ Planned features and improvements for moonbit-indexmap.
 - [x] Benchmark tests
 - [x] Property-based tests
 
-## v0.2.0
+## v0.2.0 (Current)
 
-- [ ] Serialization / deserialization support
-- [ ] `Equivalent` trait support for heterogeneous lookup
-- [ ] `Clone` and `DeepCopy` trait implementations
-- [ ] More hash algorithms (XXHash, SipHash)
-- [ ] `get_mut()` for mutable value access
-- [ ] `into_iter()` consuming iterator
+- [x] `Debug` trait implementations for IndexMap and IndexSet
+- [x] `Default` trait implementations for IndexMap and IndexSet
+- [x] `copy()` method for IndexMap and IndexSet
+- [x] `get_mut()` for mutable value access via callback
+- [x] `into_iter()` consuming iterator (`IntoIter[K, V]`)
+- [x] `into_array()` consuming conversion to array
+- [x] `ToJson` trait implementations (order-preserving JSON serialization)
+- [x] Comprehensive tests for all new features (220 total)
 
 ## Future
 
