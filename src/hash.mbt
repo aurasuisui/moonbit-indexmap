@@ -23,16 +23,8 @@ pub const LOAD_FACTOR_DENOMINATOR : Int = 4
 pub const EMPTY_HASH : Int = 0
 
 ///|
-/// Sentinel value indicating a tombstone (deleted) bucket slot.
-/// Using -1 as a marker that won't collide with real hash values.
-/// MoonBit's Hash trait is expected to produce non-negative values.
-pub const TOMBSTONE_HASH : Int = -1
-
-///|
 /// Compute the bucket index for a given hash and mask.
-/// `mask` is the table capacity minus one (assuming power-of-two capacity).
 pub fn bucket_index(hash : Int, mask : Int) -> Int {
-  // Use bitwise AND for fast modulo when capacity is power of two
   hash & mask
 }
 
@@ -44,7 +36,6 @@ pub fn should_resize(len : Int, capacity : Int) -> Bool {
 
 ///|
 /// Compute the next power of two greater than or equal to `n`.
-/// Used to ensure hash table capacity is always a power of two.
 pub fn next_power_of_two(n : Int) -> Int {
   if n <= 1 {
     return 1

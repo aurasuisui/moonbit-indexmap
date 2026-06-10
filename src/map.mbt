@@ -13,12 +13,18 @@ const NO_DISTANCE : Int = -1
 
 ///|
 /// An entry stored in the hash table buckets.
+/// Uses `TraitField` pattern — key and hash are immutable to maintain
+/// probe-chain integrity, while distance is mutable for Robin Hood insertion.
 struct Entry[K, V] {
   key : K
   value : V
   hash : Int
   mut distance : Int
 } derive(Debug)
+
+/// The sentinel hash value used for tombstone (deleted) entries.
+/// Using -1 as a marker that won't collide with real hash values.
+const TOMBSTONE_HASH : Int = -1
 
 ///|
 /// The main IndexMap type.
@@ -262,23 +268,7 @@ fn[K : Eq, V] IndexMap::remove_from_order(
 ///|
 /// Bubble sort entries by key.
 fn[K : Compare, V] sort_entries(entries : Array[(K, V)]) -> Unit {
-  let n = entries.length()
-  if n <= 1 {
-    return
-  }
-  let mut i = 0
-  while i < n - 1 {
-    let mut j = 0
-    while j < n - i - 1 {
-      if entries[j].0.compare(entries[j + 1].0) > 0 {
-        let temp = entries[j]
-        entries[j] = entries[j + 1]
-        entries[j + 1] = temp
-      }
-      j = j + 1
-    }
-    i = i + 1
-  }
+  entries.sort_by(fn(a, b) { a.0.compare(b.0) })
 }
 
 ///|
@@ -287,23 +277,7 @@ fn[K, V] sort_entries_by(
   entries : Array[(K, V)],
   cmp : ((K, V), (K, V)) -> Int,
 ) -> Unit {
-  let n = entries.length()
-  if n <= 1 {
-    return
-  }
-  let mut i = 0
-  while i < n - 1 {
-    let mut j = 0
-    while j < n - i - 1 {
-      if cmp(entries[j], entries[j + 1]) > 0 {
-        let temp = entries[j]
-        entries[j] = entries[j + 1]
-        entries[j + 1] = temp
-      }
-      j = j + 1
-    }
-    i = i + 1
-  }
+  entries.sort_by(cmp)
 }
 
 ///|
@@ -618,21 +592,15 @@ pub fn[K, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
 ///|
 /// Create a shallow copy of this IndexMap, preserving insertion order.
 pub fn[K, V] IndexMap::copy(self : IndexMap[K, V]) -> IndexMap[K, V] {
-  let new_buckets : Array[Entry[K, V]?] = []
+  let order_copy : Array[K] = []
   let mut i = 0
-  while i < self.buckets.length() {
-    new_buckets.push(self.buckets[i])
-    i = i + 1
-  }
-  let new_order : Array[K] = []
-  i = 0
   while i < self.order.length() {
-    new_order.push(self.order[i])
+    order_copy.push(self.order[i])
     i = i + 1
   }
   {
-    buckets: new_buckets,
-    order: new_order,
+    buckets: self.buckets.copy(),
+    order: order_copy,
     len: self.len,
     mask: self.mask,
     tombstone_count: self.tombstone_count,
@@ -901,8 +869,12 @@ pub fn[K : Hash + Eq, V] Keys::next(self : Keys[K, V]) -> K? {
   while self.pos < self.map.order.length() {
     let key = self.map.order[self.pos]
     self.pos = self.pos + 1
-    if self.map.contains(key) {
-      return Some(key)
+    let (idx, found) = self.map.probe_find(key, key.hash())
+    if found {
+      match self.map.buckets[idx] {
+        Some(entry) => if entry.hash != TOMBSTONE_HASH { return Some(key) }
+        None => continue
+      }
     }
   }
   None
@@ -914,9 +886,12 @@ pub fn[K : Hash + Eq, V] Values::next(self : Values[K, V]) -> V? {
   while self.pos < self.map.order.length() {
     let key = self.map.order[self.pos]
     self.pos = self.pos + 1
-    match self.map.get(key) {
-      Some(v) => return Some(v)
-      None => continue
+    let (idx, found) = self.map.probe_find(key, key.hash())
+    if found {
+      match self.map.buckets[idx] {
+        Some(entry) => if entry.hash != TOMBSTONE_HASH { return Some(entry.value) }
+        None => continue
+      }
     }
   }
   None
@@ -1015,12 +990,12 @@ pub fn[K : Hash + Eq, V] IndexMap::retain(
 }
 
 ///|
-/// Sort the map's entries by key using the built-in comparison.
+/// Sort the map's entries by key using MoonBit's built-in sort (O(n log n)).
 pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
   self : IndexMap[K, V],
 ) -> Unit {
   let entries = self.iter().collect()
-  sort_entries(entries)
+  entries.sort_by(fn(a, b) { a.0.compare(b.0) })
   self.order = []
   let mut i = 0
   while i < entries.length() {
@@ -1047,13 +1022,13 @@ pub fn[K : Hash + Eq, V] IndexMap::into_array(
 }
 
 ///|
-/// Sort the map's entries using a custom comparison function.
+/// Sort the map's entries using a custom comparison function (O(n log n)).
 pub fn[K : Hash + Eq, V] IndexMap::sort_by(
   self : IndexMap[K, V],
   cmp : ((K, V), (K, V)) -> Int,
 ) -> Unit {
   let entries = self.iter().collect()
-  sort_entries_by(entries, cmp)
+  entries.sort_by(cmp)
   self.order = []
   let mut i = 0
   while i < entries.length() {

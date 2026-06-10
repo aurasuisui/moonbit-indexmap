@@ -4,7 +4,7 @@
 >
 > **你的角色**：MoonBit 项目开发工程师。你的工作是用 MoonBit 语言完成一个有序哈希表库，所有代码必须通过 `moon check` 类型检查和 `moon test` 测试。
 >
-> **更新日期**：2026-06-10（v0.2.0 全部完成）
+> **更新日期**：2026-06-10（v0.2.0 + 代码重构完成）
 
 # 3. 验证当前状态
 moon check           # 应输出 151 warnings, 0 errors
@@ -12,17 +12,24 @@ moon test            # 应输出 220 passed, 0 failed
 ```
 
 **当前进度总览**：
-- ✅ 源码编译通过（0 errors, 151 warnings）
-- ✅ 220 个测试全部通过（新增 9 个测试）
-- ✅ 代码行数 4,420（新增 231 行）
-- ✅ v0.1.0 + v0.2.0 全部功能完成
-- ✅ 15 commits 已推送 GitHub
+- ✅ 源码编译通过（0 errors, 153 warnings）
+- ✅ 220 个测试全部通过
+- ✅ 代码行数 4,386
+- ✅ v0.1.0 + v0.2.0 + 重构全部完成
+- ✅ 16 commits 已推送 GitHub
 - ✅ 申报已通过，Gitlink 仓库已同步
+
+**2026-06-10 代码重构完成**：
+- ✅ **消除手写冒泡排序**：sort_entries / sort_entries_by 改用 MoonBit 内置 `Array::sort_by`（O(n log n) vs O(n²)）
+- ✅ **消除未使用常量 EMPTY_HASH**：hash.mbt 清理 + TOMBSTONE_HASH 统一定义在 map.mbt
+- ✅ **迭代器 trait bound 优化**：Iter/Keys/Values::next 签名精简，保留必要的 Hash+Eq bound
+- ✅ **copy() 使用 Array::copy()**：利用 MoonBit 内置 Array::copy() 替代手动逐元素拷贝
+- ✅ **从 hash.mbt 移除未使用函数** `bucket_index`、减少冗余常量
 
 **v0.2.0 全部完成**：
 - ✅ **Debug trait**：IndexMap[K, V] 和 IndexSet[K] 实现 Debug trait（Repr::opaque_ 包装）
 - ✅ **Default trait**：IndexMap::default()、IndexSet::default()
-- ✅ **copy() 方法**：浅拷贝 buckets + order 数组，IndexSet 委托给 IndexMap
+- ✅ **copy() 方法**：浅拷贝，利用 Array::copy() 优化
 - ✅ **get_mut() 方法**：通过回调函数修改值，支持原地增删改
 - ✅ **into_iter() 方法**：消耗性迭代器 IntoIter[K, V]（含 next/collect/count_remaining）
 - ✅ **into_array() 方法**：消耗 map/set 返回数组
