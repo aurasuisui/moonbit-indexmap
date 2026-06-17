@@ -263,9 +263,9 @@ See [IMPROVEMENT.md](IMPROVEMENT.md) for the detailed plan.
 - [x] Remove dead code (hash.mbt unused functions, alias, sort wrappers)
 - [x] Fix `get_mut` deletion to use tombstone pattern
 - [ ] Publish to mooncakes.io
+- [x] `Eq` and `Hash` trait for IndexSet
+- [x] Add `examples/` directory (config_parse, lru_cache, json_order)
 - [ ] `for .. in` loop support
-- [ ] `Eq` and `Hash` trait for IndexSet
-- [ ] Add `examples/` directory
 - [ ] `Arbitrary` trait for QuickCheck testing
 
 ## License

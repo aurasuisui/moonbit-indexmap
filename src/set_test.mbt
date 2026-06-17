@@ -531,3 +531,66 @@ test "IndexSet into_array consumes all elements" {
   inspect(arr[1], content="2")
   inspect(arr[2], content="3")
 }
+
+///|
+test "IndexSet Eq equal sets" {
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  a.insert("x") |> ignore
+  a.insert("y") |> ignore
+  a.insert("z") |> ignore
+  let b = @aurasuisui/indexmap.IndexSet::new()
+  b.insert("x") |> ignore
+  b.insert("y") |> ignore
+  b.insert("z") |> ignore
+  inspect(a == b, content="true")
+}
+
+///|
+test "IndexSet Eq different order not equal" {
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  a.insert("a") |> ignore
+  a.insert("b") |> ignore
+  let b = @aurasuisui/indexmap.IndexSet::new()
+  b.insert("b") |> ignore
+  b.insert("a") |> ignore
+  inspect(a == b, content="false")
+}
+
+///|
+test "IndexSet Eq different length not equal" {
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  a.insert("a") |> ignore
+  let b = @aurasuisui/indexmap.IndexSet::new()
+  b.insert("a") |> ignore
+  b.insert("b") |> ignore
+  inspect(a == b, content="false")
+}
+
+///|
+test "IndexSet Eq empty sets equal" {
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
+  inspect(a == b, content="true")
+}
+
+///|
+test "IndexSet Hash same set same hash" {
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  a.insert(1) |> ignore
+  a.insert(2) |> ignore
+  let b = @aurasuisui/indexmap.IndexSet::new()
+  b.insert(1) |> ignore
+  b.insert(2) |> ignore
+  inspect(a.hash() == b.hash(), content="true")
+}
+
+///|
+test "IndexSet Hash different order different hash" {
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  a.insert(1) |> ignore
+  a.insert(2) |> ignore
+  let b = @aurasuisui/indexmap.IndexSet::new()
+  b.insert(2) |> ignore
+  b.insert(1) |> ignore
+  inspect(a.hash() != b.hash(), content="true")
+}

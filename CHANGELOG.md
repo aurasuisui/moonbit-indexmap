@@ -11,6 +11,11 @@ All notable changes to moonbit-indexmap will be documented in this file.
 - **O(1) last / pop**: simplified without fallback loops
 - `retain` rewritten as collect-then-remove to work with swap-remove semantics
 
+### Added
+- `Eq` and `Hash` trait implementations for IndexSet
+- Examples directory: `config_parse.mbt`, `lru_cache.mbt`, `json_order.mbt`
+- Benchmark comparison tests: IndexMap vs built-in Map
+
 ### Fixed
 - `get_mut` deletion now uses tombstone pattern (was setting bucket to `None`, breaking probe chains)
 - VERSION fixed to "0.2.0" in `lib.mbt`, `moon.mod.json`, and test

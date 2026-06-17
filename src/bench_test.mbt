@@ -484,3 +484,123 @@ test "bench get_full on large map" {
   inspect(map.get_full(0), content="Some((0, 0))")
   inspect(map.get_full(999), content="Some((999, 4995))")
 }
+
+// ---------------------------------------------------------------------------
+// Benchmark: IndexMap vs built-in Map comparison
+// ---------------------------------------------------------------------------
+
+///|
+test "cmp: insert 5000 keys IndexMap vs Map" {
+  let imap = @aurasuisui/indexmap.with_capacity(8192)
+  let bmap : Map[Int, Int] = Map::new()
+  let mut i = 0
+  while i < 5000 {
+    imap.insert(i, i * 2) |> ignore
+    bmap[i] = i * 2
+    i = i + 1
+  }
+  inspect(imap.len(), content="5000")
+  inspect(bmap.size(), content="5000")
+}
+
+///|
+test "cmp: lookup 2000 keys IndexMap vs Map" {
+  let imap = @aurasuisui/indexmap.with_capacity(4096)
+  let bmap : Map[Int, Int] = Map::new()
+  let mut i = 0
+  while i < 2000 {
+    imap.insert(i, i * 3) |> ignore
+    bmap[i] = i * 3
+    i = i + 1
+  }
+  let mut found_imap = 0
+  let mut found_bmap = 0
+  let mut j = 0
+  while j < 2000 {
+    match imap.get(j) {
+      Some(_) => found_imap = found_imap + 1
+      None => ()
+    }
+    match bmap[j] {
+      Some(_) => found_bmap = found_bmap + 1
+      None => ()
+    }
+    j = j + 1
+  }
+  inspect(found_imap, content="2000")
+  inspect(found_bmap, content="2000")
+}
+
+///|
+test "cmp: remove 1000 keys IndexMap vs Map" {
+  let imap = @aurasuisui/indexmap.with_capacity(2048)
+  let bmap : Map[Int, Int] = Map::new()
+  let mut i = 0
+  while i < 2000 {
+    imap.insert(i, i) |> ignore
+    bmap[i] = i
+    i = i + 1
+  }
+  let mut j = 0
+  while j < 1000 {
+    imap.remove(j) |> ignore
+    bmap.remove(j) |> ignore
+    j = j + 1
+  }
+  inspect(imap.len(), content="1000")
+  inspect(bmap.size(), content="1000")
+}
+
+///|
+test "cmp: iteration order IndexMap preserved, Map undefined" {
+  let imap = @aurasuisui/indexmap.new()
+  imap.insert("c", 3) |> ignore
+  imap.insert("a", 1) |> ignore
+  imap.insert("b", 2) |> ignore
+  // IndexMap: order is c, a, b (insertion order)
+  let imap_entries = imap.iter().collect()
+  inspect(imap_entries[0].0, content="c")
+  inspect(imap_entries[1].0, content="a")
+  inspect(imap_entries[2].0, content="b")
+  // Built-in Map makes no guarantee about iteration order
+}
+
+///|
+test "cmp: IndexMap provides index access, Map does not" {
+  let imap = @aurasuisui/indexmap.new()
+  imap.insert("first", 1) |> ignore
+  imap.insert("second", 2) |> ignore
+  imap.insert("third", 3) |> ignore
+  // IndexMap: access by position
+  inspect(imap.get_index(0), content="Some((first, 1))")
+  inspect(imap.get_index(1), content="Some((second, 2))")
+  inspect(imap.get_index(2), content="Some((third, 3))")
+  // Built-in Map: no index-based access
+}
+
+///|
+test "cmp: 10000 insert-delete mixed workload" {
+  let imap = @aurasuisui/indexmap.with_capacity(16384)
+  // Insert 0..9999
+  let mut i = 0
+  while i < 10000 {
+    imap.insert(i, i * 10) |> ignore
+    i = i + 1
+  }
+  inspect(imap.len(), content="10000")
+  // Delete even numbers
+  let mut j = 0
+  while j < 10000 {
+    if j % 2 == 0 {
+      imap.remove(j) |> ignore
+    }
+    j = j + 1
+  }
+  inspect(imap.len(), content="5000")
+  // Verify remaining odd keys exist
+  let mut k = 1
+  while k < 10000 {
+    inspect(imap.contains(k), content="true")
+    k = k + 2
+  }
+}

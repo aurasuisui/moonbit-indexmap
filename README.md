@@ -30,7 +30,7 @@ while true {
 - **Entry API** — `OccupiedEntry` / `VacantEntry` for in-place manipulation
 - **IndexSet** — ordered hash set with `is_disjoint`, `is_subset`, `is_superset`
 - **JSON support** — `ToJson` trait preserves key order
-- **Standard traits** — `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson`
+- **Standard traits** — `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` for both IndexMap and IndexSet
 
 ## Installation
 
@@ -70,7 +70,7 @@ git clone https://github.com/aurasuisui/moonbit-indexmap
 | Core | `insert(v) -> Bool`, `contains(v) -> Bool`, `remove(v) -> Bool`, `clear()` |
 | Set ops | `is_disjoint(other)`, `is_subset(other)`, `is_superset(other)` |
 | Bulk | `retain(f)`, `drain()`, `extend(elements)`, `into_array()` |
-| Traits | `Debug`, `Default`, `Show`, `ToJson` |
+| Traits | `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` |
 
 ## Design
 

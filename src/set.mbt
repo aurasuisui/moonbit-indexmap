@@ -276,3 +276,33 @@ impl[K : ToJson + Hash + Eq] ToJson for IndexSet[K] with to_json(self) {
   }
   Json::array(arr)
 }
+
+///|
+/// Equality comparison for IndexSet (elements in same order).
+impl[K : Hash + Eq] Eq for IndexSet[K] with fn equal(self, other) {
+  if self.len() != other.len() {
+    return false
+  }
+  let a_iter = self.iter()
+  let b_iter = other.iter()
+  while true {
+    match (a_iter.next(), b_iter.next()) {
+      (Some(ak), Some(bk)) => if ak != bk { return false }
+      (None, None) => return true
+      _ => return false
+    }
+  }
+  false
+}
+
+///|
+/// Hash implementation for IndexSet (hashes elements in insertion order).
+impl[K : Hash + Eq] Hash for IndexSet[K] with fn hash_combine(self, hasher) {
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some(k) => k.hash_combine(hasher)
+      None => break
+    }
+  }
+}
