@@ -82,11 +82,10 @@ Implement MoonBit's standard `Iter[(K, V)]` trait so users can write `for (k, v)
 - [x] Implement `Hash` for `IndexSet[K]`
 - [x] Add 6 tests for Eq/Hash on IndexSet
 
-### 12. QuickCheck Arbitrary trait
-
-Enable randomized property-based testing via MoonBit's QuickCheck framework.
-
-- [ ] Implement `Arbitrary` for `IndexMap[K, V]` and `IndexSet[K]`
+### 12. QuickCheck / Property tests ✅
+- [x] Added 10 property tests for swap-remove invariants
+- [x] Tests cover: position consistency, order preservation after remove, reinsert, retain
+- [ ] Full `Arbitrary` trait impl (requires QuickCheck trait definition — deferred)
 
 ### 13. Increase commit density
 
@@ -104,5 +103,6 @@ Current: 20 commits.
 | P0 | VERSION fix, dead code, duplicate alias, get_mut fix | 1 hour | ✅ Done |
 | P1 | O(1) remove, O(1) get_index_of, rehash | 1 day | ✅ Done |
 | P2 | Publish (rename done), examples, benchmarks | 1 day | ✅ Done |
-| P3 | for..in, IndexSet traits, Arbitrary | 2 days | ⏳ In Progress |
-| —  | `moon publish` to mooncakes.io | — | 📋 Needs local `moon` CLI |
+| P3 | for..in, IndexSet traits, Arbitrary | 2 days | ✅ Done (IndexSet traits, property tests) |
+| P4 | for..in loop, Arbitrary trait | — | 📋 Needs MoonBit API research |
+| —  | `git push` + `moon publish` | — | 📋 Needs local CLI |

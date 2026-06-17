@@ -9,7 +9,7 @@
 git clone https://github.com/aurasuisui/moonbit-indexmap
 cd moonbit-indexmap
 moon check   # Type check (0 errors)
-moon test    # Run 220 tests
+moon test    # Run 236+ tests
 moon fmt     # Format code
 ```
 
@@ -23,9 +23,9 @@ moon fmt     # Format code
 │   ├── set.mbt           # IndexSet[K] — thin wrapper over IndexMap[K, Unit]
 │   ├── hash.mbt          # Shared hash constants (load factor, sentinels)
 │   ├── map_test.mbt      # Black-box tests for IndexMap (109 tests)
-│   ├── set_test.mbt      # Black-box tests for IndexSet (44 tests)
-│   ├── bench_test.mbt    # Correctness-under-load tests (30 tests)
-│   ├── property_test.mbt # Invariant/property tests (37 tests)
+│   ├── set_test.mbt      # Black-box tests for IndexSet (50 tests)
+│   ├── bench_test.mbt    # Correctness-under-load tests (36 tests)
+│   ├── property_test.mbt # Invariant/property tests (47 tests)
 │   └── moon.pkg.json     # Package config (test-only import)
 ├── .github/workflows/ci.yml
 ├── README.md
@@ -56,8 +56,9 @@ IndexMap uses two parallel arrays:
 
 ```
 IndexMap[K, V]
-├── buckets: Array[Entry[K, V]?]    ← Robin Hood hash table
-└── order:   Array[K]               ← Insertion-order log
+├── buckets:   Array[Entry[K, V]?]  ← Robin Hood hash table
+├── order:     Array[K]             ← Insertion-order log
+└── positions: Map[K, Int]          ← Key → index lookup (O(1) remove)
 ```
 
 **Buckets** is the hash table. Each slot is `Entry[K, V]?` — `None` means empty, `Some(entry)` means occupied. Deleted entries become **tombstones**: their `hash` is set to `TOMBSTONE_HASH (-1)` but the slot stays `Some`.

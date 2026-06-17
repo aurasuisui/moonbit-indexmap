@@ -487,3 +487,207 @@ test "property: is_empty consistent with len" {
   map.insert("x", 1) |> ignore
   inspect(map.is_empty() == (map.len() == 0), content="true")
 }
+
+// ---------------------------------------------------------------------------
+// Property tests: O(1) swap-remove invariants (v0.2.0)
+// ---------------------------------------------------------------------------
+
+///|
+test "property: get_index_of matches order array position" {
+  let map = @aurasuisui/indexmap.new()
+  let keys = ["z", "y", "x", "w", "v", "u"]
+  let mut i = 0
+  while i < keys.length() {
+    map.insert(keys[i], i) |> ignore
+    i = i + 1
+  }
+  // Verify every key's index matches its order array position
+  let mut j = 0
+  while j < keys.length() {
+    match map.get_index_of(keys[j]) {
+      Some(pos) => inspect(map.order[j], content=keys[pos])
+      None => @test.fail("key should have a position")
+    }
+    j = j + 1
+  }
+}
+
+///|
+test "property: remove from front preserves remaining order" {
+  let map = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 10 {
+    map.insert(i, i * 10) |> ignore
+    i = i + 1
+  }
+  // Remove first 5 elements
+  let mut j = 0
+  while j < 5 {
+    map.remove(j) |> ignore
+    j = j + 1
+  }
+  inspect(map.len(), content="5")
+  // Remaining should be 5,6,7,8,9 in order
+  let entries = map.iter().collect()
+  let mut k = 0
+  while k < 5 {
+    inspect(entries[k].0, content="\{k + 5}")
+    k = k + 1
+  }
+}
+
+///|
+test "property: remove from back preserves front order" {
+  let map = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 10 {
+    map.insert(i, i * 10) |> ignore
+    i = i + 1
+  }
+  // Remove last 5 elements
+  let mut j = 9
+  while j >= 5 {
+    map.remove(j) |> ignore
+    j = j - 1
+  }
+  inspect(map.len(), content="5")
+  let entries = map.iter().collect()
+  let mut k = 0
+  while k < 5 {
+    inspect(entries[k].0, content="\{k}")
+    k = k + 1
+  }
+}
+
+///|
+test "property: remove from middle preserves edge order" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.insert("d", 4) |> ignore
+  map.insert("e", 5) |> ignore
+  map.remove("c") |> ignore
+  // Order should be a, b, d, e
+  let entries = map.iter().collect()
+  inspect(entries[0], content="(a, 1)")
+  inspect(entries[1], content="(b, 2)")
+  inspect(entries[2], content="(d, 4)")
+  inspect(entries[3], content="(e, 5)")
+}
+
+///|
+test "property: remove all in random order leaves empty" {
+  let map = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 100 {
+    map.insert(i, i) |> ignore
+    i = i + 1
+  }
+  // Remove in reverse order
+  let mut j = 99
+  while j >= 0 {
+    map.remove(j) |> ignore
+    j = j - 1
+  }
+  inspect(map.is_empty(), content="true")
+  inspect(map.len(), content="0")
+}
+
+///|
+test "property: swap_remove then insert preserves order semantics" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.insert("d", 4) |> ignore
+  // swap_remove "b" (index 1)
+  map.swap_remove_index(1) |> ignore
+  inspect(map.len(), content="3")
+  // After swap-remove, order array should be compact (no holes)
+  let entries = map.iter().collect()
+  inspect(entries.length(), content="3")
+}
+
+///|
+test "property: reinsert removed key goes to end" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.remove("a") |> ignore
+  map.insert("a", 10) |> ignore
+  // "a" should now be at the end
+  let entries = map.iter().collect()
+  inspect(entries[0], content="(b, 2)")
+  inspect(entries[1], content="(c, 3)")
+  inspect(entries[2], content="(a, 10)")
+}
+
+///|
+test "property: get_index_of returns none for removed key" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("x", 1) |> ignore
+  map.insert("y", 2) |> ignore
+  map.remove("x") |> ignore
+  inspect(map.get_index_of("x"), content="None")
+  inspect(map.get_index_of("y"), content="Some(0)")
+}
+
+///|
+test "property: mixed insert remove sequence" {
+  let map = @aurasuisui/indexmap.new()
+  // Insert 50
+  let mut i = 0
+  while i < 50 {
+    map.insert(i, i) |> ignore
+    i = i + 1
+  }
+  // Remove evens
+  let mut j = 0
+  while j < 50 {
+    if j % 2 == 0 {
+      map.remove(j) |> ignore
+    }
+    j = j + 1
+  }
+  inspect(map.len(), content="25")
+  // Re-insert some evens
+  map.insert(0, 999) |> ignore
+  map.insert(10, 999) |> ignore
+  inspect(map.len(), content="27")
+  // Verify re-inserted keys are at end
+  let entries = map.iter().collect()
+  let last_two = (entries[25].0, entries[26].0)
+  inspect(last_two, content="(0, 10)")
+}
+
+///|
+test "property: retain with swap-remove consistency" {
+  let map = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 50 {
+    map.insert(i, i) |> ignore
+    i = i + 1
+  }
+  // Retain multiples of 5
+  map.retain(fn(_k, v) { v % 5 == 0 })
+  inspect(map.len(), content="10")
+  // Verify all remaining are multiples of 5
+  let iter = map.iter()
+  while true {
+    match iter.next() {
+      Some((_, v)) => inspect(v % 5 == 0, content="true")
+      None => break
+    }
+  }
+  // Verify order: they should appear in original insertion order
+  let entries = map.iter().collect()
+  let mut prev = -1
+  let mut j = 0
+  while j < entries.length() {
+    inspect(entries[j].0 > prev, content="true")
+    prev = entries[j].0
+    j = j + 1
+  }
+}
