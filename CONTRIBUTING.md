@@ -137,14 +137,14 @@ The tombstone pattern (setting `entry.hash = TOMBSTONE_HASH` while keeping `Some
 ### Iteration: How Order Is Preserved
 
 ```
-Iter::next():
+MapIter::next():
   for each key in self.map.order[pos..]:
     let val = self.map.get(key)   // lookup in hash table
     if val is Some → return (key, val)   // key still exists
     else → skip                           // key was deleted, skip silently
 ```
 
-`Keys::next()` and `Values::next()` do direct bucket inspection (checking `TOMBSTONE_HASH`) instead of calling `get()` — an optimization that avoids trait bounds.
+`MapKeys::next()` and `MapValues::next()` do direct bucket inspection (checking `TOMBSTONE_HASH`) instead of calling `get()` — an optimization that avoids trait bounds.
 
 ### Memory Layout Invariants
 
@@ -266,8 +266,9 @@ See [IMPROVEMENT.md](IMPROVEMENT.md) for the detailed plan.
 - [ ] Publish to mooncakes.io
 - [x] `Eq` and `Hash` trait for IndexSet
 - [x] Add `examples/` directory (config_parse, lru_cache, json_order)
-- [ ] `for .. in` loop support
-- [ ] `Arbitrary` trait for QuickCheck testing
+- [x] `Arbitrary` trait for QuickCheck (IndexMap + IndexSet)
+- [x] Iterator types renamed (MapIter, MapKeys, MapValues)
+- [ ] Native `for .. in` loop (needs built-in Iter construction API)
 
 ## License
 

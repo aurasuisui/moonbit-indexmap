@@ -16,6 +16,11 @@ All notable changes to moonbit-indexmap will be documented in this file.
 - Examples directory: `config_parse.mbt`, `lru_cache.mbt`, `json_order.mbt`
 - Benchmark comparison tests: IndexMap vs built-in Map (6 new tests)
 - 10 new property tests for swap-remove invariants (order, positions, retain)
+- `Arbitrary` trait implementations for IndexMap and IndexSet (QuickCheck support)
+- 11 QuickCheck property tests in `arbitrary_test.mbt`
+
+### Changed
+- **Iterator types renamed**: `Iter`→`MapIter`, `IntoIter`→`IntoMapIter`, `Keys`→`MapKeys`, `Values`→`MapValues` (avoid conflict with built-in `Iter[T]` type)
 
 ### Fixed
 - `get_mut` deletion now uses tombstone pattern (was setting bucket to `None`, breaking probe chains)

@@ -31,6 +31,7 @@ while true {
 - **IndexSet** — ordered hash set with `is_disjoint`, `is_subset`, `is_superset`
 - **JSON support** — `ToJson` trait preserves key order
 - **Standard traits** — `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` for both IndexMap and IndexSet
+- **QuickCheck support** — `Arbitrary` trait for property-based testing
 
 ## Installation
 

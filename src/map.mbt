@@ -40,28 +40,28 @@ struct IndexMap[K, V] {
 
 ///|
 /// An entry iterator over (key, value) pairs in insertion order.
-struct Iter[K, V] {
+struct MapIter[K, V] {
   map : IndexMap[K, V]
   mut pos : Int
 }
 
 ///|
 /// A consuming iterator over (key, value) pairs in insertion order.
-struct IntoIter[K, V] {
+struct IntoMapIter[K, V] {
   entries : Array[(K, V)]
   mut pos : Int
 }
 
 ///|
 /// A key iterator over keys in insertion order.
-struct Keys[K, V] {
+struct MapKeys[K, V] {
   map : IndexMap[K, V]
   mut pos : Int
 }
 
 ///|
 /// A value iterator over values in insertion order.
-struct Values[K, V] {
+struct MapValues[K, V] {
   map : IndexMap[K, V]
   mut pos : Int
 }
@@ -800,13 +800,13 @@ pub fn[K : Hash + Eq, V] IndexMap::pop(self : IndexMap[K, V]) -> (K, V)? {
 
 ///|
 /// Return an iterator over (key, value) pairs in insertion order.
-pub fn[K, V] IndexMap::iter(self : IndexMap[K, V]) -> Iter[K, V] {
+pub fn[K, V] IndexMap::iter(self : IndexMap[K, V]) -> MapIter[K, V] {
   { map: self, pos: 0 }
 }
 
 ///|
 /// Return an iterator over keys in insertion order.
-pub fn[K, V] IndexMap::keys(self : IndexMap[K, V]) -> Keys[K, V] {
+pub fn[K, V] IndexMap::keys(self : IndexMap[K, V]) -> MapKeys[K, V] {
   { map: self, pos: 0 }
 }
 
@@ -814,13 +814,13 @@ pub fn[K, V] IndexMap::keys(self : IndexMap[K, V]) -> Keys[K, V] {
 /// Return an iterator over values in insertion order.
 pub fn[K, V] IndexMap::values(
   self : IndexMap[K, V],
-) -> Values[K, V] {
+) -> MapValues[K, V] {
   { map: self, pos: 0 }
 }
 
 ///|
 /// Advance the entry iterator.
-pub fn[K : Hash + Eq, V] Iter::next(self : Iter[K, V]) -> (K, V)? {
+pub fn[K : Hash + Eq, V] MapIter::next(self : MapIter[K, V]) -> (K, V)? {
   while self.pos < self.map.order.length() {
     let key = self.map.order[self.pos]
     self.pos = self.pos + 1
@@ -834,7 +834,7 @@ pub fn[K : Hash + Eq, V] Iter::next(self : Iter[K, V]) -> (K, V)? {
 
 ///|
 /// Advance the key iterator.
-pub fn[K : Hash + Eq, V] Keys::next(self : Keys[K, V]) -> K? {
+pub fn[K : Hash + Eq, V] MapKeys::next(self : MapKeys[K, V]) -> K? {
   while self.pos < self.map.order.length() {
     let key = self.map.order[self.pos]
     self.pos = self.pos + 1
@@ -851,7 +851,7 @@ pub fn[K : Hash + Eq, V] Keys::next(self : Keys[K, V]) -> K? {
 
 ///|
 /// Advance the value iterator.
-pub fn[K : Hash + Eq, V] Values::next(self : Values[K, V]) -> V? {
+pub fn[K : Hash + Eq, V] MapValues::next(self : MapValues[K, V]) -> V? {
   while self.pos < self.map.order.length() {
     let key = self.map.order[self.pos]
     self.pos = self.pos + 1
@@ -868,7 +868,7 @@ pub fn[K : Hash + Eq, V] Values::next(self : Values[K, V]) -> V? {
 
 ///|
 /// Collect all remaining iterator entries into an Array.
-pub fn[K : Hash + Eq, V] Iter::collect(self : Iter[K, V]) -> Array[(K, V)] {
+pub fn[K : Hash + Eq, V] MapIter::collect(self : MapIter[K, V]) -> Array[(K, V)] {
   let result = []
   while true {
     match self.next() {
@@ -881,7 +881,7 @@ pub fn[K : Hash + Eq, V] Iter::collect(self : Iter[K, V]) -> Array[(K, V)] {
 
 ///|
 /// Return the number of entries the iterator has left to yield.
-pub fn[K : Hash + Eq, V] Iter::count_remaining(self : Iter[K, V]) -> Int {
+pub fn[K : Hash + Eq, V] MapIter::count_remaining(self : MapIter[K, V]) -> Int {
   let mut count = 0
   let mut i = self.pos
   while i < self.map.order.length() {
@@ -896,7 +896,7 @@ pub fn[K : Hash + Eq, V] Iter::count_remaining(self : Iter[K, V]) -> Int {
 
 ///|
 /// Advance the consuming iterator.
-pub fn[K, V] IntoIter::next(self : IntoIter[K, V]) -> (K, V)? {
+pub fn[K, V] IntoMapIter::next(self : IntoMapIter[K, V]) -> (K, V)? {
   if self.pos >= self.entries.length() {
     return None
   }
@@ -907,7 +907,7 @@ pub fn[K, V] IntoIter::next(self : IntoIter[K, V]) -> (K, V)? {
 
 ///|
 /// Collect all remaining entries from the consuming iterator.
-pub fn[K, V] IntoIter::collect(self : IntoIter[K, V]) -> Array[(K, V)] {
+pub fn[K, V] IntoMapIter::collect(self : IntoMapIter[K, V]) -> Array[(K, V)] {
   let result = []
   let mut i = self.pos
   while i < self.entries.length() {
@@ -919,7 +919,7 @@ pub fn[K, V] IntoIter::collect(self : IntoIter[K, V]) -> Array[(K, V)] {
 
 ///|
 /// Return the number of entries remaining in the consuming iterator.
-pub fn[K, V] IntoIter::count_remaining(self : IntoIter[K, V]) -> Int {
+pub fn[K, V] IntoMapIter::count_remaining(self : IntoMapIter[K, V]) -> Int {
   self.entries.length() - self.pos
 }
 
@@ -985,7 +985,7 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
 /// Consume the map and return an iterator over (key, value) pairs.
 pub fn[K : Hash + Eq, V] IndexMap::into_iter(
   self : IndexMap[K, V],
-) -> IntoIter[K, V] {
+) -> IntoMapIter[K, V] {
   { entries: self.drain(), pos: 0 }
 }
 
@@ -1146,4 +1146,18 @@ impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with to_json(
     }
   }
   Json::object(obj)
+}
+
+// ---------------------------------------------------------------------------
+// QuickCheck Arbitrary support
+// ---------------------------------------------------------------------------
+
+///|
+/// Generate random IndexMap values for property-based testing.
+impl[K : Arbitrary + Hash + Eq, V : Arbitrary] Arbitrary for IndexMap[K, V] with fn arbitrary(
+  size,
+  r0,
+) {
+  let entries : Array[(K, V)] = @quickcheck.Arbitrary::arbitrary(size, r0)
+  IndexMap::from_array(entries)
 }

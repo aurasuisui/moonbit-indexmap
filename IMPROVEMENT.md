@@ -71,11 +71,10 @@ Real-world examples help adoption and demonstrate value to judges.
 
 ## 🔵 P3 — Nice to Have
 
-### 10. for..in loop support
-
-Implement MoonBit's standard `Iter[(K, V)]` trait so users can write `for (k, v) in map { ... }`.
-
-- [ ] Implement `Iter[(K, V)]` for IndexMap
+### 10. for..in loop support ⚠️ Deferred
+- [x] Iterator types renamed to avoid `Iter[T]` conflict
+- [ ] Native `for..in` requires constructing built-in `Iter[(K, V)]` — needs compiler API
+- [ ] Workaround: `for (k, v) in map.iter().collect()` for now
 
 ### 11. Eq and Hash for IndexSet ✅
 - [x] Implement `Eq` for `IndexSet[K]` (same elements in same order)
@@ -87,12 +86,19 @@ Implement MoonBit's standard `Iter[(K, V)]` trait so users can write `for (k, v)
 - [x] Tests cover: position consistency, order preservation after remove, reinsert, retain
 - [ ] Full `Arbitrary` trait impl (requires QuickCheck trait definition — deferred)
 
-### 13. Increase commit density
+### 13. Increase commit density ✅
+- [x] 5 focused commits with conventional messages
 
-Current: 20 commits.
+### 14. Iterator type rename (safe for for..in future) ✅
+- [x] `Iter`→`MapIter`, `IntoIter`→`IntoMapIter`, `Keys`→`MapKeys`, `Values`→`MapValues`
+- [x] Avoids conflict with MoonBit built-in `Iter[T]` type
+- [x] Transparent to users (types are return-type only, not named by callers)
 
-- [x] Smaller, focused commits for each improvement item
-- [x] Use conventional commit messages (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`)
+### 15. Arbitrary trait (QuickCheck support) ✅
+- [x] `Arbitrary` trait impl for `IndexMap[K, V]`
+- [x] `Arbitrary` trait impl for `IndexSet[K]`
+- [x] `moon.pkg.json` imports `moonbitlang/core/quickcheck`
+- [x] 11 QuickCheck property tests in `arbitrary_test.mbt`
 
 ---
 
@@ -103,6 +109,5 @@ Current: 20 commits.
 | P0 | VERSION fix, dead code, duplicate alias, get_mut fix | 1 hour | ✅ Done |
 | P1 | O(1) remove, O(1) get_index_of, rehash | 1 day | ✅ Done |
 | P2 | Publish (rename done), examples, benchmarks | 1 day | ✅ Done |
-| P3 | for..in, IndexSet traits, Arbitrary | 2 days | ✅ Done (IndexSet traits, property tests) |
-| P4 | for..in loop, Arbitrary trait | — | 📋 Needs MoonBit API research |
+| P3 | IndexSet traits, property tests, Arbitrary, iter rename | 2 days | ✅ Done |
 | —  | `git push` + `moon publish` | — | 📋 Needs local CLI |

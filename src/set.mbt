@@ -177,7 +177,7 @@ pub fn[K : Hash + Eq] IndexSet::is_superset(
 
 ///|
 /// Return an iterator over elements in insertion order.
-pub fn[K] IndexSet::iter(self : IndexSet[K]) -> Keys[K, Unit] {
+pub fn[K] IndexSet::iter(self : IndexSet[K]) -> MapKeys[K, Unit] {
   self.inner.keys()
 }
 
@@ -305,4 +305,15 @@ impl[K : Hash + Eq] Hash for IndexSet[K] with fn hash_combine(self, hasher) {
       None => break
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// QuickCheck Arbitrary support
+// ---------------------------------------------------------------------------
+
+///|
+/// Generate random IndexSet values for property-based testing.
+impl[K : Arbitrary + Hash + Eq] Arbitrary for IndexSet[K] with fn arbitrary(size, r0) {
+  let elements : Array[K] = @quickcheck.Arbitrary::arbitrary(size, r0)
+  IndexSet::from_array(elements)
 }
