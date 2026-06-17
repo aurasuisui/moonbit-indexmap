@@ -3,7 +3,7 @@
 
 ///|
 test "property: insert N keys gives len N" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 50 {
     map.insert(i, i * 10) |> ignore
@@ -14,7 +14,7 @@ test "property: insert N keys gives len N" {
 
 ///|
 test "property: insert twice same key preserves len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("key", 1) |> ignore
   map.insert("key", 2) |> ignore
   inspect(map.len(), content="1")
@@ -22,7 +22,7 @@ test "property: insert twice same key preserves len" {
 
 ///|
 test "property: insert get roundtrip" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 100 {
     map.insert(i, i * 7) |> ignore
@@ -40,7 +40,7 @@ test "property: insert get roundtrip" {
 
 ///|
 test "property: remove reduces len by 1" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 100 {
     map.insert(i, i) |> ignore
@@ -52,7 +52,7 @@ test "property: remove reduces len by 1" {
 
 ///|
 test "property: removed key not found" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 50 {
     map.insert(i, i) |> ignore
@@ -64,7 +64,7 @@ test "property: removed key not found" {
 
 ///|
 test "property: iteration count equals len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 75 {
     map.insert(i, i * 2) |> ignore
@@ -83,7 +83,7 @@ test "property: iteration count equals len" {
 
 ///|
 test "property: deleted key not in iteration" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
@@ -99,7 +99,7 @@ test "property: deleted key not in iteration" {
 
 ///|
 test "property: clear makes len zero" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 100 {
     map.insert(i, i) |> ignore
@@ -112,7 +112,7 @@ test "property: clear makes len zero" {
 
 ///|
 test "property: contains matches get" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("exists", 42) |> ignore
   inspect(map.contains("exists"), content="true")
   inspect(map.contains("missing"), content="false")
@@ -124,7 +124,7 @@ test "property: contains matches get" {
 
 ///|
 test "property: extend N entries yields len N" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let entries = []
   let mut i = 0
   while i < 30 {
@@ -137,7 +137,7 @@ test "property: extend N entries yields len N" {
 
 ///|
 test "property: drain empties map" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 50 {
     map.insert(i, i) |> ignore
@@ -150,7 +150,7 @@ test "property: drain empties map" {
 
 ///|
 test "property: retain all keeps all" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 100 {
     map.insert(i, i) |> ignore
@@ -162,7 +162,7 @@ test "property: retain all keeps all" {
 
 ///|
 test "property: retain none removes all" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 100 {
     map.insert(i, i) |> ignore
@@ -174,7 +174,7 @@ test "property: retain none removes all" {
 
 ///|
 test "property: keys iterator count equals len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
@@ -191,7 +191,7 @@ test "property: keys iterator count equals len" {
 
 ///|
 test "property: values iterator count equals len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
@@ -208,7 +208,7 @@ test "property: values iterator count equals len" {
 
 ///|
 test "property: insert preserves existing entries" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 50 {
     map.insert(i, i * 10) |> ignore
@@ -223,7 +223,7 @@ test "property: insert preserves existing entries" {
 
 ///|
 test "property: shrink_to_fit preserves data" {
-  let map = @indexmap.with_capacity(512)
+  let map = @aurasuisui/indexmap.with_capacity(512)
   let mut i = 0
   while i < 20 {
     map.insert(i, i * 5) |> ignore
@@ -239,7 +239,7 @@ test "property: shrink_to_fit preserves data" {
 
 ///|
 test "property: insert order equals iteration order" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let keys = ["z", "y", "x", "w", "v"]
   let mut i = 0
   while i < keys.length() {
@@ -263,7 +263,7 @@ test "property: insert order equals iteration order" {
 
 ///|
 test "property: swap_remove maintains len minus 1" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 100 {
     map.insert(i, i) |> ignore
@@ -275,7 +275,7 @@ test "property: swap_remove maintains len minus 1" {
 
 ///|
 test "property: overwrite does not change len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
@@ -286,7 +286,7 @@ test "property: overwrite does not change len" {
 
 ///|
 test "property: pop on non-empty reduces len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.pop() |> ignore
@@ -295,7 +295,7 @@ test "property: pop on non-empty reduces len" {
 
 ///|
 test "property: pop returns most recent" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("first", 1) |> ignore
   map.insert("second", 2) |> ignore
   let popped = map.pop()
@@ -305,7 +305,7 @@ test "property: pop returns most recent" {
 ///|
 test "property: from_array preserves input order" {
   let entries = [("c", 3), ("b", 2), ("a", 1)]
-  let map = @indexmap.IndexMap::from_array(entries)
+  let map = @aurasuisui/indexmap.IndexMap::from_array(entries)
   let collected = map.iter().collect()
   inspect(collected[0], content="(c, 3)")
   inspect(collected[1], content="(b, 2)")
@@ -314,7 +314,7 @@ test "property: from_array preserves input order" {
 
 ///|
 test "property: empty map has capacity 16" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   inspect(map.capacity(), content="16")
   inspect(map.len(), content="0")
   let lf = map.load_factor()
@@ -324,7 +324,7 @@ test "property: empty map has capacity 16" {
 
 ///|
 test "property: first equals get_index 0" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("x", 10) |> ignore
   map.insert("y", 20) |> ignore
   let f = map.first()
@@ -340,7 +340,7 @@ test "property: first equals get_index 0" {
 
 ///|
 test "property: sort_by_key stable for sorted input" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 50 {
     map.insert(i, i) |> ignore
@@ -357,14 +357,14 @@ test "property: sort_by_key stable for sorted input" {
 
 ///|
 test "property: IndexSet insert returns false on duplicate" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.insert("x"), content="true")
   inspect(set.insert("x"), content="false")
 }
 
 ///|
 test "property: IndexSet len matches unique inserts" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   set.insert("c") |> ignore
@@ -375,10 +375,10 @@ test "property: IndexSet len matches unique inserts" {
 
 ///|
 test "property: IndexSet disjoint is symmetric" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert(1) |> ignore
   a.insert(2) |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert(3) |> ignore
   b.insert(4) |> ignore
   inspect(a.is_disjoint(b), content="true")
@@ -387,10 +387,10 @@ test "property: IndexSet disjoint is symmetric" {
 
 ///|
 test "property: IndexSet subset implies superset" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert(1) |> ignore
   a.insert(2) |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert(1) |> ignore
   b.insert(2) |> ignore
   b.insert(3) |> ignore
@@ -400,8 +400,8 @@ test "property: IndexSet subset implies superset" {
 
 ///|
 test "property: IndexSet empty is always subset" {
-  let empty = @indexmap.IndexSet::new()
-  let set = @indexmap.IndexSet::new()
+  let empty = @aurasuisui/indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   set.insert("y") |> ignore
   inspect(empty.is_subset(set), content="true")
@@ -409,13 +409,13 @@ test "property: IndexSet empty is always subset" {
 
 ///|
 test "property: IndexSet empty is always superset of empty" {
-  let empty = @indexmap.IndexSet::new()
+  let empty = @aurasuisui/indexmap.IndexSet::new()
   inspect(empty.is_superset(empty), content="true")
 }
 
 ///|
 test "property: IndexSet iteration order matches insert" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("b") |> ignore
   set.insert("c") |> ignore
   set.insert("a") |> ignore
@@ -437,7 +437,7 @@ test "property: IndexSet iteration order matches insert" {
 
 ///|
 test "property: reserve on filled map preserves data" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 30 {
     map.insert(i, i * 2) |> ignore
@@ -455,7 +455,7 @@ test "property: reserve on filled map preserves data" {
 
 ///|
 test "property: delete and reinsert same key" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("key", 1) |> ignore
   map.remove("key") |> ignore
   map.insert("key", 2) |> ignore
@@ -470,7 +470,7 @@ test "property: delete and reinsert same key" {
 
 ///|
 test "property: count_remaining decreases after next" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   let iter = map.iter()
@@ -482,7 +482,7 @@ test "property: count_remaining decreases after next" {
 
 ///|
 test "property: is_empty consistent with len" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   inspect(map.is_empty() == (map.len() == 0), content="true")
   map.insert("x", 1) |> ignore
   inspect(map.is_empty() == (map.len() == 0), content="true")

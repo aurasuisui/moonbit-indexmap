@@ -31,6 +31,7 @@ const TOMBSTONE_HASH : Int = -1
 struct IndexMap[K, V] {
   mut buckets : Array[Entry[K, V]?]
   mut order : Array[K]
+  mut positions : Map[K, Int]
   mut len : Int
   mut mask : Int
   mut tombstone_count : Int
@@ -182,16 +183,6 @@ fn[K : Eq, V] IndexMap::robin_hood_find(
 }
 
 ///|
-/// Find a bucket — same as robin_hood_find but named for clarity.
-fn[K : Eq, V] IndexMap::robin_hood_find_or_insertion_point(
-  self : IndexMap[K, V],
-  key : K,
-  hash : Int,
-) -> (Int, Bool) {
-  self.robin_hood_find(key, hash)
-}
-
-///|
 /// Insert an entry at the given bucket index using Robin Hood displacement.
 fn[K, V] IndexMap::robin_hood_insert_at(
   self : IndexMap[K, V],
@@ -245,39 +236,24 @@ fn[K, V] IndexMap::robin_hood_insert_at(
 }
 
 ///|
-/// Remove a key from the order array by linear scan and shift (O(n)).
-fn[K : Eq, V] IndexMap::remove_from_order(
+/// Remove a key from the order array by swap-remove (O(1)).
+fn[K : Hash + Eq, V] IndexMap::remove_from_order(
   self : IndexMap[K, V],
   key : K,
 ) -> Unit {
-  let mut i = 0
-  while i < self.order.length() {
-    if self.order[i] == key {
-      let mut j = i
-      while j + 1 < self.order.length() {
-        self.order[j] = self.order[j + 1]
-        j = j + 1
+  match self.positions[key] {
+    None => ()
+    Some(pos) => {
+      let last_idx = self.order.length() - 1
+      if pos != last_idx {
+        let last_key = self.order[last_idx]
+        self.order[pos] = last_key
+        self.positions[last_key] = pos
       }
       self.order.pop() |> ignore
-      return
+      self.positions.remove(key) |> ignore
     }
-    i = i + 1
   }
-}
-
-///|
-/// Bubble sort entries by key.
-fn[K : Compare, V] sort_entries(entries : Array[(K, V)]) -> Unit {
-  entries.sort_by(fn(a, b) { a.0.compare(b.0) })
-}
-
-///|
-/// Sort entries with a custom comparator.
-fn[K, V] sort_entries_by(
-  entries : Array[(K, V)],
-  cmp : ((K, V), (K, V)) -> Int,
-) -> Unit {
-  entries.sort_by(cmp)
 }
 
 ///|
@@ -385,6 +361,7 @@ pub fn[K, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
   {
     buckets: Array::make(real_cap, None),
     order: [],
+    positions: Map::new(),
     len: 0,
     mask,
     tombstone_count: 0,
@@ -481,6 +458,7 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
     let new_entry = { key, value, hash, distance: NO_DISTANCE }
     self.robin_hood_insert_at(new_entry, bucket_idx, hash)
     self.order.push(key)
+    self.positions[key] = self.order.length() - 1
     self.len = self.len + 1
     return None
   }
@@ -510,7 +488,12 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
           self.buckets[idx] = Some(new_entry)
         }
         None => {
-          self.buckets[idx] = None
+          self.buckets[idx] = Some({
+            key: entry.key,
+            value: entry.value,
+            hash: TOMBSTONE_HASH,
+            distance: NO_DISTANCE,
+          })
           self.remove_from_order(key)
           self.tombstone_count = self.tombstone_count + 1
           self.len = self.len - 1
@@ -584,6 +567,7 @@ pub fn[K, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
   let cap = self.buckets.length()
   self.buckets = Array::make(cap, None)
   self.order = []
+  self.positions = Map::new()
   self.len = 0
   self.tombstone_count = 0
   self.max_probe_distance = 0
@@ -593,14 +577,18 @@ pub fn[K, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
 /// Create a shallow copy of this IndexMap, preserving insertion order.
 pub fn[K, V] IndexMap::copy(self : IndexMap[K, V]) -> IndexMap[K, V] {
   let order_copy : Array[K] = []
+  let positions_copy : Map[K, Int] = Map::new()
   let mut i = 0
   while i < self.order.length() {
-    order_copy.push(self.order[i])
+    let k = self.order[i]
+    order_copy.push(k)
+    positions_copy[k] = i
     i = i + 1
   }
   {
     buckets: self.buckets.copy(),
     order: order_copy,
+    positions: positions_copy,
     len: self.len,
     mask: self.mask,
     tombstone_count: self.tombstone_count,
@@ -643,7 +631,7 @@ pub fn[K : Hash + Eq, V] IndexMap::entry(
   key : K,
 ) -> EntryView[K, V] {
   let hash = key.hash()
-  let (idx, found) = self.robin_hood_find_or_insertion_point(key, hash)
+  let (idx, found) = self.robin_hood_find(key, hash)
   if found {
     Occupied({ map: self, key, hash, bucket_index: idx })
   } else {
@@ -703,6 +691,7 @@ pub fn[K, V] VacantEntry::insert(
   let entry = { key: self.key, value, hash: self.hash, distance: NO_DISTANCE }
   self.map.robin_hood_insert_at(entry, self.bucket_index, self.hash)
   self.map.order.push(self.key)
+  self.map.positions[self.key] = self.map.order.length() - 1
   self.map.len = self.map.len + 1
   value
 }
@@ -751,14 +740,7 @@ pub fn[K : Eq, V] IndexMap::get_index_of(
   self : IndexMap[K, V],
   key : K,
 ) -> Int? {
-  let mut i = 0
-  while i < self.order.length() {
-    if self.order[i] == key {
-      return Some(i)
-    }
-    i = i + 1
-  }
-  None
+  self.positions[key]
 }
 
 ///|
@@ -773,14 +755,11 @@ pub fn[K : Hash + Eq, V] IndexMap::last(self : IndexMap[K, V]) -> (K, V)? {
   if self.order.length() == 0 {
     return None
   }
-  let mut i = self.order.length() - 1
-  while i >= 0 {
-    match self.get_index(i) {
-      Some(entry) => return Some(entry)
-      None => i = i - 1
-    }
+  let key = self.order[self.order.length() - 1]
+  match self.get(key) {
+    Some(v) => Some((key, v))
+    None => None
   }
-  None
 }
 
 ///|
@@ -793,13 +772,7 @@ pub fn[K : Hash + Eq, V] IndexMap::swap_remove_index(
     return None
   }
   let key = self.order[index]
-  let last_idx = self.order.length() - 1
-  if index != last_idx {
-    self.order[index] = self.order[last_idx]
-  }
-  self.order.pop() |> ignore
-  let val = self.remove(key)
-  match val {
+  match self.remove(key) {
     Some(v) => Some((key, v))
     None => None
   }
@@ -811,18 +784,14 @@ pub fn[K : Hash + Eq, V] IndexMap::pop(self : IndexMap[K, V]) -> (K, V)? {
   if self.order.length() == 0 {
     return None
   }
-  let mut i = self.order.length() - 1
-  while i >= 0 {
-    let key = self.order[i]
-    match self.get(key) {
-      Some(v) => {
-        self.remove(key) |> ignore
-        return Some((key, v))
-      }
-      None => i = i - 1
+  let key = self.order[self.order.length() - 1]
+  match self.get(key) {
+    Some(v) => {
+      self.remove(key) |> ignore
+      Some((key, v))
     }
+    None => None
   }
-  None
 }
 
 // ---------------------------------------------------------------------------
@@ -979,13 +948,18 @@ pub fn[K : Hash + Eq, V] IndexMap::retain(
   self : IndexMap[K, V],
   f : (K, V) -> Bool,
 ) -> Unit {
-  let mut i = 0
-  while i < self.order.length() {
-    let key = self.order[i]
-    match self.get(key) {
-      Some(v) => if !f(key, v) { self.remove(key) |> ignore } else { i = i + 1 }
-      None => self.remove_from_order(key)
+  let to_remove : Array[K] = []
+  let iter = self.iter()
+  while true {
+    match iter.next() {
+      Some((k, v)) => if !f(k, v) { to_remove.push(k) }
+      None => break
     }
+  }
+  let mut i = 0
+  while i < to_remove.length() {
+    self.remove(to_remove[i]) |> ignore
+    i = i + 1
   }
 }
 
@@ -997,10 +971,12 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
   let entries = self.iter().collect()
   entries.sort_by(fn(a, b) { a.0.compare(b.0) })
   self.order = []
+  self.positions = Map::new()
   let mut i = 0
   while i < entries.length() {
     let (k, _) = entries[i]
     self.order.push(k)
+    self.positions[k] = i
     i = i + 1
   }
 }
@@ -1030,10 +1006,12 @@ pub fn[K : Hash + Eq, V] IndexMap::sort_by(
   let entries = self.iter().collect()
   entries.sort_by(cmp)
   self.order = []
+  self.positions = Map::new()
   let mut i = 0
   while i < entries.length() {
     let (k, _) = entries[i]
     self.order.push(k)
+    self.positions[k] = i
     i = i + 1
   }
 }

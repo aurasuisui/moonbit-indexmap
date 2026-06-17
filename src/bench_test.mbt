@@ -3,7 +3,7 @@
 
 ///|
 test "bench insert 1000 int keys" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let mut i = 0
   while i < 1000 {
     map.insert(i, i * 2) |> ignore
@@ -19,7 +19,7 @@ test "bench insert 1000 int keys" {
 
 ///|
 test "bench insert 5000 int keys" {
-  let map = @indexmap.with_capacity(1024)
+  let map = @aurasuisui/indexmap.with_capacity(1024)
   let mut i = 0
   while i < 5000 {
     map.insert(i, i * 3) |> ignore
@@ -32,7 +32,7 @@ test "bench insert 5000 int keys" {
 
 ///|
 test "bench insert 10000 int keys" {
-  let map = @indexmap.with_capacity(4096)
+  let map = @aurasuisui/indexmap.with_capacity(4096)
   let mut i = 0
   while i < 10000 {
     map.insert(i, i) |> ignore
@@ -51,7 +51,7 @@ test "bench insert 10000 int keys" {
 
 ///|
 test "bench lookup 5000 keys" {
-  let map = @indexmap.with_capacity(8192)
+  let map = @aurasuisui/indexmap.with_capacity(8192)
   let mut i = 0
   while i < 5000 {
     map.insert(i, i * 10) |> ignore
@@ -71,7 +71,7 @@ test "bench lookup 5000 keys" {
 
 ///|
 test "bench lookup missing keys" {
-  let map = @indexmap.with_capacity(1024)
+  let map = @aurasuisui/indexmap.with_capacity(1024)
   let mut i = 0
   while i < 500 {
     map.insert(i, i) |> ignore
@@ -90,7 +90,7 @@ test "bench lookup missing keys" {
 
 ///|
 test "bench iteration 5000 elements" {
-  let map = @indexmap.with_capacity(8192)
+  let map = @aurasuisui/indexmap.with_capacity(8192)
   let mut i = 0
   while i < 5000 {
     map.insert(i, i) |> ignore
@@ -109,7 +109,7 @@ test "bench iteration 5000 elements" {
 
 ///|
 test "bench keys iteration 5000" {
-  let map = @indexmap.with_capacity(8192)
+  let map = @aurasuisui/indexmap.with_capacity(8192)
   let mut i = 0
   while i < 5000 {
     map.insert(i, i) |> ignore
@@ -128,7 +128,7 @@ test "bench keys iteration 5000" {
 
 ///|
 test "bench values iteration 5000" {
-  let map = @indexmap.with_capacity(8192)
+  let map = @aurasuisui/indexmap.with_capacity(8192)
   let mut i = 0
   while i < 5000 {
     map.insert(i, i * 10) |> ignore
@@ -147,7 +147,7 @@ test "bench values iteration 5000" {
 
 ///|
 test "bench delete 2000 of 3000" {
-  let map = @indexmap.with_capacity(4096)
+  let map = @aurasuisui/indexmap.with_capacity(4096)
   let mut i = 0
   while i < 3000 {
     map.insert(i, i) |> ignore
@@ -165,7 +165,7 @@ test "bench delete 2000 of 3000" {
 
 ///|
 test "bench delete all 1000 one by one" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i) |> ignore
@@ -181,7 +181,7 @@ test "bench delete all 1000 one by one" {
 
 ///|
 test "bench mixed insert and delete" {
-  let map = @indexmap.with_capacity(1024)
+  let map = @aurasuisui/indexmap.with_capacity(1024)
   let mut i = 0
   while i < 500 {
     map.insert(i, i) |> ignore
@@ -212,7 +212,7 @@ test "bench mixed insert and delete" {
 
 ///|
 test "bench retain large map" {
-  let map = @indexmap.with_capacity(4096)
+  let map = @aurasuisui/indexmap.with_capacity(4096)
   let mut i = 0
   while i < 2000 {
     map.insert(i, i) |> ignore
@@ -227,7 +227,7 @@ test "bench retain large map" {
 
 ///|
 test "bench sort_by_key large map" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 999
   while i >= 0 {
     map.insert(i, i * 2) |> ignore
@@ -242,7 +242,7 @@ test "bench sort_by_key large map" {
 
 ///|
 test "bench different initial capacities small" {
-  let map = @indexmap.with_capacity(4)
+  let map = @aurasuisui/indexmap.with_capacity(4)
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   inspect(map.len(), content="2")
@@ -251,7 +251,7 @@ test "bench different initial capacities small" {
 
 ///|
 test "bench different initial capacities large" {
-  let map = @indexmap.with_capacity(16384)
+  let map = @aurasuisui/indexmap.with_capacity(16384)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i) |> ignore
@@ -264,7 +264,7 @@ test "bench different initial capacities large" {
 
 ///|
 test "bench extend large batch" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   let entries = []
   let mut i = 0
   while i < 1000 {
@@ -279,7 +279,7 @@ test "bench extend large batch" {
 
 ///|
 test "bench drain large map" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i) |> ignore
@@ -292,7 +292,7 @@ test "bench drain large map" {
 
 ///|
 test "bench clear and reuse" {
-  let map = @indexmap.with_capacity(1024)
+  let map = @aurasuisui/indexmap.with_capacity(1024)
   let mut round = 0
   while round < 10 {
     let mut i = 0
@@ -309,7 +309,7 @@ test "bench clear and reuse" {
 
 ///|
 test "bench string keys 2000" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 0
   while i < 2000 {
     map.insert(i.to_string(), i) |> ignore
@@ -322,7 +322,7 @@ test "bench string keys 2000" {
 
 ///|
 test "bench IndexSet large" {
-  let set = @indexmap.IndexSet::with_capacity(4096)
+  let set = @aurasuisui/indexmap.IndexSet::with_capacity(4096)
   let mut i = 0
   while i < 5000 {
     set.insert(i) |> ignore
@@ -340,7 +340,7 @@ test "bench IndexSet large" {
 
 ///|
 test "bench IndexSet remove all" {
-  let set = @indexmap.IndexSet::with_capacity(2048)
+  let set = @aurasuisui/indexmap.IndexSet::with_capacity(2048)
   let mut i = 0
   while i < 2000 {
     set.insert(i) |> ignore
@@ -356,7 +356,7 @@ test "bench IndexSet remove all" {
 
 ///|
 test "bench for_each large" {
-  let map = @indexmap.with_capacity(4096)
+  let map = @aurasuisui/indexmap.with_capacity(4096)
   let mut i = 0
   while i < 3000 {
     map.insert(i, i * 2) |> ignore
@@ -370,7 +370,7 @@ test "bench for_each large" {
 
 ///|
 test "bench swap_remove many" {
-  let map = @indexmap.with_capacity(1024)
+  let map = @aurasuisui/indexmap.with_capacity(1024)
   let mut i = 0
   while i < 500 {
     map.insert(i, i) |> ignore
@@ -386,7 +386,7 @@ test "bench swap_remove many" {
 
 ///|
 test "bench reserve then fill" {
-  let map = @indexmap.new()
+  let map = @aurasuisui/indexmap.new()
   map.reserve(2000)
   let cap = map.capacity()
   inspect(cap >= 2000, content="true")
@@ -400,7 +400,7 @@ test "bench reserve then fill" {
 
 ///|
 test "bench max_probe after many inserts" {
-  let map = @indexmap.with_capacity(16)
+  let map = @aurasuisui/indexmap.with_capacity(16)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i) |> ignore
@@ -413,7 +413,7 @@ test "bench max_probe after many inserts" {
 
 ///|
 test "bench load_factor after fill" {
-  let map = @indexmap.with_capacity(128)
+  let map = @aurasuisui/indexmap.with_capacity(128)
   let mut i = 0
   while i < 80 {
     map.insert(i, i) |> ignore
@@ -426,7 +426,7 @@ test "bench load_factor after fill" {
 
 ///|
 test "bench first and last on large map" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i * 10) |> ignore
@@ -450,7 +450,7 @@ test "bench first and last on large map" {
 
 ///|
 test "bench get_index_of on large map" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i) |> ignore
@@ -463,7 +463,7 @@ test "bench get_index_of on large map" {
 
 ///|
 test "bench count_remaining on large iter" {
-  let map = @indexmap.with_capacity(4096)
+  let map = @aurasuisui/indexmap.with_capacity(4096)
   let mut i = 0
   while i < 2000 {
     map.insert(i, i) |> ignore
@@ -475,7 +475,7 @@ test "bench count_remaining on large iter" {
 
 ///|
 test "bench get_full on large map" {
-  let map = @indexmap.with_capacity(2048)
+  let map = @aurasuisui/indexmap.with_capacity(2048)
   let mut i = 0
   while i < 1000 {
     map.insert(i, i * 5) |> ignore

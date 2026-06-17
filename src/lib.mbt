@@ -15,7 +15,7 @@
 // # Quick Start
 //
 // ```
-// let map = @indexmap.new()
+// let map = @aurasuisui/indexmap.new()
 // map.insert("b", 2)
 // map.insert("a", 1)
 // map.insert("c", 3)
@@ -32,7 +32,7 @@
 
 ///|
 /// Library version string.
-pub const VERSION : String = "0.1.0"
+pub const VERSION : String = "0.2.0"
 
 ///|
 /// Create a new, empty IndexMap.

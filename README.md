@@ -7,7 +7,7 @@ A hash map that preserves insertion order — MoonBit port of Rust's [`indexmap`
 MoonBit's built-in `Map[K, V]` does not guarantee iteration order. IndexMap remembers the order keys were inserted, making it ideal for configuration parsing, JSON serialization, LRU caches, and deterministic tests.
 
 ```moonbit
-let map = @indexmap.new()
+let map = @aurasuisui/indexmap.new()
 map.insert("b", 2) |> ignore
 map.insert("a", 1) |> ignore
 map.insert("c", 3) |> ignore
@@ -34,11 +34,17 @@ while true {
 
 ## Installation
 
+Add to `moon.mod.json`:
+
 ```json
-{ "dependencies": { "indexmap": "0.2.0" } }
+{ "dependencies": { "aurasuisui/indexmap": "0.2.0" } }
 ```
 
-Or `git clone https://github.com/aurasuisui/moonbit-indexmap`.
+Or clone directly:
+
+```bash
+git clone https://github.com/aurasuisui/moonbit-indexmap
+```
 
 ## API Overview
 
@@ -75,7 +81,7 @@ Two parallel structures:
 
 Deletion uses tombstone markers to preserve probe chains, with automatic rehash when the tombstone ratio exceeds 25%.
 
-### Compared to builtin Map
+### Compared to built-in Map
 
 | Property | `Map[K, V]` | `IndexMap[K, V]` |
 |----------|-------------|-------------------|
@@ -87,10 +93,12 @@ Deletion uses tombstone markers to preserve probe chains, with automatic rehash 
 ## Development
 
 ```bash
-moon check   # 0 errors
-moon test    # 220 tests
+moon check   # Type check
+moon test    # Run all tests
 moon fmt     # Format code
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for project layout, roadmap, and contribution guidelines.
 
 ## License
 

@@ -1,15 +1,15 @@
-// Blackbox tests for IndexSet — use @moonbit-indexmap to import public API.
+// Blackbox tests for IndexSet — use @aurasuisui/indexmap to import public API.
 
 ///|
 test "new set is empty" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.len(), content="0")
   inspect(set.is_empty(), content="true")
 }
 
 ///|
 test "set insert and contains" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.insert("a"), content="true")
   inspect(set.insert("a"), content="false")
   inspect(set.contains("a"), content="true")
@@ -19,7 +19,7 @@ test "set insert and contains" {
 
 ///|
 test "set remove" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   inspect(set.remove("a"), content="true")
@@ -30,7 +30,7 @@ test "set remove" {
 
 ///|
 test "set clear" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   set.clear()
@@ -39,10 +39,10 @@ test "set clear" {
 
 ///|
 test "set disjoint" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
   a.insert("y") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert("z") |> ignore
   b.insert("w") |> ignore
   inspect(a.is_disjoint(b), content="true")
@@ -52,10 +52,10 @@ test "set disjoint" {
 
 ///|
 test "set subset" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
   a.insert("y") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert("x") |> ignore
   b.insert("y") |> ignore
   b.insert("z") |> ignore
@@ -65,11 +65,11 @@ test "set subset" {
 
 ///|
 test "set superset" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
   a.insert("y") |> ignore
   a.insert("z") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert("x") |> ignore
   b.insert("y") |> ignore
   inspect(a.is_superset(b), content="true")
@@ -78,7 +78,7 @@ test "set superset" {
 
 ///|
 test "set iteration order" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("c") |> ignore
   set.insert("a") |> ignore
   set.insert("b") |> ignore
@@ -100,7 +100,7 @@ test "set iteration order" {
 
 ///|
 test "set retain" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert(1) |> ignore
   set.insert(2) |> ignore
   set.insert(3) |> ignore
@@ -115,7 +115,7 @@ test "set retain" {
 
 ///|
 test "set large insert" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   let mut i = 0
   while i < 500 {
     set.insert(i) |> ignore
@@ -131,15 +131,15 @@ test "set large insert" {
 
 ///|
 test "set capacity" {
-  let set = @indexmap.IndexSet::with_capacity(64)
+  let set = @aurasuisui/indexmap.IndexSet::with_capacity(64)
   inspect(set.capacity(), content="64")
   inspect(set.is_empty(), content="true")
 }
 
 ///|
 test "set empty operations" {
-  let a = @indexmap.IndexSet::new()
-  let b = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   inspect(a.is_disjoint(b), content="true")
   inspect(a.is_subset(b), content="true")
   inspect(a.is_superset(b), content="true")
@@ -147,28 +147,28 @@ test "set empty operations" {
 
 ///|
 test "set disjoint with self" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   inspect(set.is_disjoint(set), content="false")
 }
 
 ///|
 test "set subset with self" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   inspect(set.is_subset(set), content="true")
 }
 
 ///|
 test "set superset with self" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   inspect(set.is_superset(set), content="true")
 }
 
 ///|
 test "set retain all" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert(1) |> ignore
   set.insert(2) |> ignore
   set.insert(3) |> ignore
@@ -178,7 +178,7 @@ test "set retain all" {
 
 ///|
 test "set retain none" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert(1) |> ignore
   set.insert(2) |> ignore
   set.retain(fn(_x) { false })
@@ -187,7 +187,7 @@ test "set retain none" {
 
 ///|
 test "set remove all and reinsert" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   set.insert("c") |> ignore
@@ -203,7 +203,7 @@ test "set remove all and reinsert" {
 
 ///|
 test "set remove preserves order" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("c") |> ignore
   set.insert("a") |> ignore
   set.insert("b") |> ignore
@@ -222,7 +222,7 @@ test "set remove preserves order" {
 
 ///|
 test "set clear then reuse" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   set.clear()
@@ -234,34 +234,34 @@ test "set clear then reuse" {
 
 ///|
 test "set disjoint one empty" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   inspect(a.is_disjoint(b), content="true")
   inspect(b.is_disjoint(a), content="true")
 }
 
 ///|
 test "set subset one empty" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   inspect(b.is_subset(a), content="true")
   inspect(a.is_subset(b), content="false")
 }
 
 ///|
 test "set superset one empty" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   inspect(a.is_superset(b), content="true")
   inspect(b.is_superset(a), content="false")
 }
 
 ///|
 test "set multiple inserts same element" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   let mut i = 0
   while i < 20 {
     set.insert("same") |> ignore
@@ -272,13 +272,13 @@ test "set multiple inserts same element" {
 
 ///|
 test "set large disjoint check" {
-  let a = @indexmap.IndexSet::with_capacity(1024)
+  let a = @aurasuisui/indexmap.IndexSet::with_capacity(1024)
   let mut i = 0
   while i < 500 {
     a.insert(i) |> ignore
     i = i + 1
   }
-  let b = @indexmap.IndexSet::with_capacity(1024)
+  let b = @aurasuisui/indexmap.IndexSet::with_capacity(1024)
   let mut j = 500
   while j < 1000 {
     b.insert(j) |> ignore
@@ -289,13 +289,13 @@ test "set large disjoint check" {
 
 ///|
 test "set large subset check" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   let mut i = 0
   while i < 100 {
     a.insert(i) |> ignore
     i = i + 1
   }
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   let mut j = 0
   while j < 200 {
     b.insert(j) |> ignore
@@ -307,23 +307,23 @@ test "set large subset check" {
 
 ///|
 test "set with_capacity default" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.capacity(), content="16")
 }
 
 ///|
 test "set empty retain" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.retain(fn(_x) { true })
   inspect(set.is_empty(), content="true")
 }
 
 ///|
 test "set disjoint same elements" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("x") |> ignore
   a.insert("y") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert("x") |> ignore
   b.insert("y") |> ignore
   inspect(a.is_disjoint(b), content="false")
@@ -332,10 +332,10 @@ test "set disjoint same elements" {
 
 ///|
 test "set subset equal sets" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert("a") |> ignore
   a.insert("b") |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert("a") |> ignore
   b.insert("b") |> ignore
   inspect(a.is_subset(b), content="true")
@@ -344,10 +344,10 @@ test "set subset equal sets" {
 
 ///|
 test "set superset equal sets" {
-  let a = @indexmap.IndexSet::new()
+  let a = @aurasuisui/indexmap.IndexSet::new()
   a.insert(1) |> ignore
   a.insert(2) |> ignore
-  let b = @indexmap.IndexSet::new()
+  let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert(1) |> ignore
   b.insert(2) |> ignore
   inspect(a.is_superset(b), content="true")
@@ -355,13 +355,13 @@ test "set superset equal sets" {
 
 ///|
 test "set iterate empty" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.iter().next(), content="None")
 }
 
 ///|
 test "set chained operations" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   set.insert("c") |> ignore
@@ -383,7 +383,7 @@ test "set chained operations" {
 
 ///|
 test "set remove middle element" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("a") |> ignore
   set.insert("b") |> ignore
   set.insert("c") |> ignore
@@ -403,7 +403,7 @@ test "set remove middle element" {
 
 ///|
 test "set first and last via iteration" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("first") |> ignore
   set.insert("middle") |> ignore
   set.insert("last") |> ignore
@@ -422,14 +422,14 @@ test "set first and last via iteration" {
 
 ///|
 test "set with_capacity zero" {
-  let set = @indexmap.IndexSet::with_capacity(0)
+  let set = @aurasuisui/indexmap.IndexSet::with_capacity(0)
   inspect(set.capacity(), content="16")
   inspect(set.is_empty(), content="true")
 }
 
 ///|
 test "set is_empty after all operations" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   set.insert("y") |> ignore
   set.remove("x") |> ignore
@@ -439,7 +439,7 @@ test "set is_empty after all operations" {
 
 ///|
 test "set from_array" {
-  let set = @indexmap.IndexSet::from_array(["c", "a", "b"])
+  let set = @aurasuisui/indexmap.IndexSet::from_array(["c", "a", "b"])
   inspect(set.len(), content="3")
   inspect(set.contains("a"), content="true")
   inspect(set.contains("b"), content="true")
@@ -463,7 +463,7 @@ test "set from_array" {
 
 ///|
 test "set drain" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   set.insert("y") |> ignore
   set.insert("z") |> ignore
@@ -477,14 +477,14 @@ test "set drain" {
 
 ///|
 test "set drain empty" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   let drained = set.drain()
   inspect(drained.length(), content="0")
 }
 
 ///|
 test "set extend" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("existing") |> ignore
   set.extend(["a", "b", "c"])
   inspect(set.len(), content="4")
@@ -496,14 +496,14 @@ test "set extend" {
 
 ///|
 test "IndexSet Default trait" {
-  let set : @indexmap.IndexSet[String] = @indexmap.IndexSet::default()
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::default()
   inspect(set.is_empty(), content="true")
   inspect(set.len(), content="0")
 }
 
 ///|
 test "IndexSet copy preserves elements and order" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("b") |> ignore
   set.insert("a") |> ignore
   set.insert("c") |> ignore
@@ -521,7 +521,7 @@ test "IndexSet copy preserves elements and order" {
 
 ///|
 test "IndexSet into_array consumes all elements" {
-  let set = @indexmap.IndexSet::new()
+  let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert(1) |> ignore
   set.insert(2) |> ignore
   set.insert(3) |> ignore

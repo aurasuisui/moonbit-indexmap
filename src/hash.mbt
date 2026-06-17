@@ -1,14 +1,9 @@
 // Copyright (c) 2024 moonbit-indexmap contributors
 // SPDX-License-Identifier: Apache-2.0
 
-/// Hash utilities for internal use in IndexMap.
-///
-/// Provides helpers for computing and working with hash values
-/// within the open-addressing hash table.
-
-///|
-/// The initial capacity of a new IndexMap.
-pub const INITIAL_CAPACITY : Int = 16
+// Hash utilities for internal use in IndexMap.
+//
+// Provides shared constants for the open-addressing hash table.
 
 ///|
 /// The maximum load factor before the hash table resizes.
@@ -17,32 +12,3 @@ pub const LOAD_FACTOR_NUMERATOR : Int = 3
 
 ///|
 pub const LOAD_FACTOR_DENOMINATOR : Int = 4
-
-///|
-/// Sentinel value indicating an empty bucket slot.
-pub const EMPTY_HASH : Int = 0
-
-///|
-/// Compute the bucket index for a given hash and mask.
-pub fn bucket_index(hash : Int, mask : Int) -> Int {
-  hash & mask
-}
-
-///|
-/// Check if the current load exceeds the threshold for resizing.
-pub fn should_resize(len : Int, capacity : Int) -> Bool {
-  len * LOAD_FACTOR_DENOMINATOR >= capacity * LOAD_FACTOR_NUMERATOR
-}
-
-///|
-/// Compute the next power of two greater than or equal to `n`.
-pub fn next_power_of_two(n : Int) -> Int {
-  if n <= 1 {
-    return 1
-  }
-  let mut p = 1
-  while p < n {
-    p = p << 1
-  }
-  p
-}

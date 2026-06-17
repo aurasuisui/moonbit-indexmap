@@ -2,6 +2,23 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Module renamed** from `indexmap` to `aurasuisui/indexmap` for mooncakes.io publishing
+- **O(1) remove**: `remove_from_order` rewritten from linear scan (O(n)) to swap-remove with position map
+- **O(1) get_index_of**: now uses direct position lookup instead of linear scan
+- **O(1) last / pop**: simplified without fallback loops
+- `retain` rewritten as collect-then-remove to work with swap-remove semantics
+
+### Fixed
+- `get_mut` deletion now uses tombstone pattern (was setting bucket to `None`, breaking probe chains)
+- VERSION fixed to "0.2.0" in `lib.mbt`, `moon.mod.json`, and test
+
+### Removed
+- Dead code: `robin_hood_find_or_insertion_point` alias, unused `sort_entries`/`sort_entries_by` wrappers
+- Dead code from `hash.mbt`: unused constants and functions
+
 ## [0.2.0] - 2026-06-10
 
 ### Added
