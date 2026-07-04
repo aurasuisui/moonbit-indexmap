@@ -462,15 +462,15 @@ test "bench get_index_of on large map" {
 }
 
 ///|
-test "bench count_remaining on large iter" {
+test "bench iter collect large map matches len" {
   let map = @aurasuisui/indexmap.with_capacity(4096)
   let mut i = 0
   while i < 2000 {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  let iter = map.iter()
-  inspect(iter.count_remaining(), content="2000")
+  let collected = map.iter().collect()
+  inspect(collected.length(), content="2000")
 }
 
 ///|
@@ -492,7 +492,7 @@ test "bench get_full on large map" {
 ///|
 test "cmp: insert 5000 keys IndexMap vs Map" {
   let imap = @aurasuisui/indexmap.with_capacity(8192)
-  let bmap : Map[Int, Int] = Map::new()
+  let bmap : Map[Int, Int] = Map([])
   let mut i = 0
   while i < 5000 {
     imap.insert(i, i * 2) |> ignore
@@ -500,13 +500,13 @@ test "cmp: insert 5000 keys IndexMap vs Map" {
     i = i + 1
   }
   inspect(imap.len(), content="5000")
-  inspect(bmap.size(), content="5000")
+  inspect(bmap.length(), content="5000")
 }
 
 ///|
 test "cmp: lookup 2000 keys IndexMap vs Map" {
   let imap = @aurasuisui/indexmap.with_capacity(4096)
-  let bmap : Map[Int, Int] = Map::new()
+  let bmap : Map[Int, Int] = Map([])
   let mut i = 0
   while i < 2000 {
     imap.insert(i, i * 3) |> ignore
@@ -521,7 +521,7 @@ test "cmp: lookup 2000 keys IndexMap vs Map" {
       Some(_) => found_imap = found_imap + 1
       None => ()
     }
-    match bmap[j] {
+    match bmap.get(j) {
       Some(_) => found_bmap = found_bmap + 1
       None => ()
     }
@@ -534,7 +534,7 @@ test "cmp: lookup 2000 keys IndexMap vs Map" {
 ///|
 test "cmp: remove 1000 keys IndexMap vs Map" {
   let imap = @aurasuisui/indexmap.with_capacity(2048)
-  let bmap : Map[Int, Int] = Map::new()
+  let bmap : Map[Int, Int] = Map([])
   let mut i = 0
   while i < 2000 {
     imap.insert(i, i) |> ignore
@@ -548,7 +548,7 @@ test "cmp: remove 1000 keys IndexMap vs Map" {
     j = j + 1
   }
   inspect(imap.len(), content="1000")
-  inspect(bmap.size(), content="1000")
+  inspect(bmap.length(), content="1000")
 }
 
 ///|

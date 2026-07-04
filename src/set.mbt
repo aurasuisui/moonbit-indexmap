@@ -19,26 +19,24 @@ struct IndexSet[K] {
 
 ///|
 /// Create a new, empty IndexSet.
-pub fn[K] IndexSet::new() -> IndexSet[K] {
+pub fn[K : Hash + Eq] IndexSet::new() -> IndexSet[K] {
   { inner: IndexMap::new() }
 }
 
 ///|
-pub impl[K] Default for IndexSet[K] with default() {
+pub impl[K : Hash + Eq] Default for IndexSet[K] with fn default() {
   IndexSet::new()
 }
 
 ///|
 /// Create a new IndexSet with the given initial capacity.
-pub fn[K] IndexSet::with_capacity(cap : Int) -> IndexSet[K] {
+pub fn[K : Hash + Eq] IndexSet::with_capacity(cap : Int) -> IndexSet[K] {
   { inner: IndexMap::with_capacity(cap) }
 }
 
 ///|
 /// Create an IndexSet from an array of elements.
-pub fn[K : Hash + Eq] IndexSet::from_array(
-  elements : Array[K],
-) -> IndexSet[K] {
+pub fn[K : Hash + Eq] IndexSet::from_array(elements : Array[K]) -> IndexSet[K] {
   let set = IndexSet::with_capacity(elements.length())
   let mut i = 0
   while i < elements.length() {
@@ -102,13 +100,13 @@ pub fn[K : Hash + Eq] IndexSet::remove(self : IndexSet[K], value : K) -> Bool {
 
 ///|
 /// Remove all elements from the set.
-pub fn[K] IndexSet::clear(self : IndexSet[K]) -> Unit {
+pub fn[K : Hash + Eq] IndexSet::clear(self : IndexSet[K]) -> Unit {
   self.inner.clear()
 }
 
 ///|
 /// Create a shallow copy of this IndexSet, preserving insertion order.
-pub fn[K] IndexSet::copy(self : IndexSet[K]) -> IndexSet[K] {
+pub fn[K : Hash + Eq] IndexSet::copy(self : IndexSet[K]) -> IndexSet[K] {
   { inner: self.inner.copy() }
 }
 
@@ -177,7 +175,8 @@ pub fn[K : Hash + Eq] IndexSet::is_superset(
 
 ///|
 /// Return an iterator over elements in insertion order.
-pub fn[K] IndexSet::iter(self : IndexSet[K]) -> MapKeys[K, Unit] {
+/// Supports `for elem in set { ... }` syntax.
+pub fn[K : Hash + Eq] IndexSet::iter(self : IndexSet[K]) -> Iter[K] {
   self.inner.keys()
 }
 
@@ -228,7 +227,7 @@ pub fn[K : Hash + Eq] IndexSet::extend(
 
 ///|
 /// Implement Show for IndexSet for debugging.
-impl[K : Show + Hash + Eq] Show for IndexSet[K] with fn output(self, logger) {
+pub impl[K : Show + Hash + Eq] Show for IndexSet[K] with fn output(self, logger) {
   logger.write_string("IndexSet{")
   let mut first = true
   let iter = self.iter()
@@ -249,14 +248,12 @@ impl[K : Show + Hash + Eq] Show for IndexSet[K] with fn output(self, logger) {
 
 ///|
 /// Debug implementation for IndexSet (insertion order).
-impl[K : Debug + Hash + Eq] Debug for IndexSet[K] with to_repr(self) {
+pub impl[K : Debug + Hash + Eq] Debug for IndexSet[K] with fn to_repr(self) {
   let elements : Array[Repr] = []
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some(k) => {
-        elements.push(to_repr(k))
-      }
+      Some(k) => elements.push(to_repr(k))
       None => break
     }
   }
@@ -265,7 +262,7 @@ impl[K : Debug + Hash + Eq] Debug for IndexSet[K] with to_repr(self) {
 
 ///|
 /// Serialize an IndexSet to JSON, preserving insertion order.
-impl[K : ToJson + Hash + Eq] ToJson for IndexSet[K] with to_json(self) {
+pub impl[K : ToJson + Hash + Eq] ToJson for IndexSet[K] with fn to_json(self) {
   let arr : Array[Json] = []
   let iter = self.iter()
   while true {
@@ -279,7 +276,7 @@ impl[K : ToJson + Hash + Eq] ToJson for IndexSet[K] with to_json(self) {
 
 ///|
 /// Equality comparison for IndexSet (elements in same order).
-impl[K : Hash + Eq] Eq for IndexSet[K] with fn equal(self, other) {
+pub impl[K : Hash + Eq] Eq for IndexSet[K] with fn equal(self, other) {
   if self.len() != other.len() {
     return false
   }
@@ -297,7 +294,7 @@ impl[K : Hash + Eq] Eq for IndexSet[K] with fn equal(self, other) {
 
 ///|
 /// Hash implementation for IndexSet (hashes elements in insertion order).
-impl[K : Hash + Eq] Hash for IndexSet[K] with fn hash_combine(self, hasher) {
+pub impl[K : Hash + Eq] Hash for IndexSet[K] with fn hash_combine(self, hasher) {
   let iter = self.iter()
   while true {
     match iter.next() {
@@ -313,7 +310,9 @@ impl[K : Hash + Eq] Hash for IndexSet[K] with fn hash_combine(self, hasher) {
 
 ///|
 /// Generate random IndexSet values for property-based testing.
-impl[K : Arbitrary + Hash + Eq] Arbitrary for IndexSet[K] with fn arbitrary(size, r0) {
+pub impl[K : @quickcheck.Arbitrary + Hash + Eq] @quickcheck.Arbitrary for IndexSet[
+  K,
+] with fn arbitrary(size, r0) {
   let elements : Array[K] = @quickcheck.Arbitrary::arbitrary(size, r0)
   IndexSet::from_array(elements)
 }

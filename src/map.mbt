@@ -22,6 +22,7 @@ struct Entry[K, V] {
   mut distance : Int
 } derive(Debug)
 
+///|
 /// The sentinel hash value used for tombstone (deleted) entries.
 /// Using -1 as a marker that won't collide with real hash values.
 const TOMBSTONE_HASH : Int = -1
@@ -39,30 +40,9 @@ struct IndexMap[K, V] {
 }
 
 ///|
-/// An entry iterator over (key, value) pairs in insertion order.
-struct MapIter[K, V] {
-  map : IndexMap[K, V]
-  mut pos : Int
-}
-
-///|
 /// A consuming iterator over (key, value) pairs in insertion order.
 struct IntoMapIter[K, V] {
   entries : Array[(K, V)]
-  mut pos : Int
-}
-
-///|
-/// A key iterator over keys in insertion order.
-struct MapKeys[K, V] {
-  map : IndexMap[K, V]
-  mut pos : Int
-}
-
-///|
-/// A value iterator over values in insertion order.
-struct MapValues[K, V] {
-  map : IndexMap[K, V]
   mut pos : Int
 }
 
@@ -236,19 +216,23 @@ fn[K, V] IndexMap::robin_hood_insert_at(
 }
 
 ///|
-/// Remove a key from the order array by swap-remove (O(1)).
+/// Remove a key from the order array, shifting later elements left to
+/// preserve insertion order (O(n)). Updates `positions` accordingly.
 fn[K : Hash + Eq, V] IndexMap::remove_from_order(
   self : IndexMap[K, V],
   key : K,
 ) -> Unit {
-  match self.positions[key] {
+  match self.positions.get(key) {
     None => ()
     Some(pos) => {
+      // Shift elements after `pos` one slot left, fixing their positions.
+      let mut i = pos
       let last_idx = self.order.length() - 1
-      if pos != last_idx {
-        let last_key = self.order[last_idx]
-        self.order[pos] = last_key
-        self.positions[last_key] = pos
+      while i < last_idx {
+        let next_key = self.order[i + 1]
+        self.order[i] = next_key
+        self.positions[next_key] = i
+        i = i + 1
       }
       self.order.pop() |> ignore
       self.positions.remove(key) |> ignore
@@ -340,18 +324,18 @@ fn[K : Hash + Eq, V] IndexMap::rehash(
 
 ///|
 /// Create a new, empty IndexMap with default capacity (16 buckets).
-pub fn[K, V] IndexMap::new() -> IndexMap[K, V] {
+pub fn[K : Hash + Eq, V] IndexMap::new() -> IndexMap[K, V] {
   IndexMap::with_capacity(MIN_CAPACITY)
 }
 
 ///|
-pub impl[K, V] Default for IndexMap[K, V] with default() {
+pub impl[K : Hash + Eq, V] Default for IndexMap[K, V] with fn default() {
   IndexMap::new()
 }
 
 ///|
 /// Create a new IndexMap with the given initial capacity.
-pub fn[K, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
+pub fn[K : Hash + Eq, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
   let real_cap = if cap < MIN_CAPACITY {
     MIN_CAPACITY
   } else {
@@ -361,7 +345,7 @@ pub fn[K, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
   {
     buckets: Array::make(real_cap, None),
     order: [],
-    positions: Map::new(),
+    positions: Map([], capacity=real_cap),
     len: 0,
     mask,
     tombstone_count: 0,
@@ -477,28 +461,29 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
   let (idx, found) = self.probe_find(key, hash)
   if found {
     match self.buckets[idx] {
-      Some(entry) => match f(Some(entry.value)) {
-        Some(new_val) => {
-          let new_entry = {
-            key: entry.key,
-            value: new_val,
-            hash: entry.hash,
-            distance: entry.distance,
+      Some(entry) =>
+        match f(Some(entry.value)) {
+          Some(new_val) => {
+            let new_entry = {
+              key: entry.key,
+              value: new_val,
+              hash: entry.hash,
+              distance: entry.distance,
+            }
+            self.buckets[idx] = Some(new_entry)
           }
-          self.buckets[idx] = Some(new_entry)
+          None => {
+            self.buckets[idx] = Some({
+              key: entry.key,
+              value: entry.value,
+              hash: TOMBSTONE_HASH,
+              distance: NO_DISTANCE,
+            })
+            self.remove_from_order(key)
+            self.tombstone_count = self.tombstone_count + 1
+            self.len = self.len - 1
+          }
         }
-        None => {
-          self.buckets[idx] = Some({
-            key: entry.key,
-            value: entry.value,
-            hash: TOMBSTONE_HASH,
-            distance: NO_DISTANCE,
-          })
-          self.remove_from_order(key)
-          self.tombstone_count = self.tombstone_count + 1
-          self.len = self.len - 1
-        }
-      }
       None => f(None) |> ignore
     }
   } else {
@@ -563,11 +548,11 @@ pub fn[K : Hash + Eq, V] IndexMap::contains(
 
 ///|
 /// Remove all entries from the map.
-pub fn[K, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
+pub fn[K : Hash + Eq, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
   let cap = self.buckets.length()
   self.buckets = Array::make(cap, None)
   self.order = []
-  self.positions = Map::new()
+  self.positions = Map([])
   self.len = 0
   self.tombstone_count = 0
   self.max_probe_distance = 0
@@ -575,9 +560,11 @@ pub fn[K, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
 
 ///|
 /// Create a shallow copy of this IndexMap, preserving insertion order.
-pub fn[K, V] IndexMap::copy(self : IndexMap[K, V]) -> IndexMap[K, V] {
+pub fn[K : Hash + Eq, V] IndexMap::copy(
+  self : IndexMap[K, V],
+) -> IndexMap[K, V] {
   let order_copy : Array[K] = []
-  let positions_copy : Map[K, Int] = Map::new()
+  let positions_copy : Map[K, Int] = Map([])
   let mut i = 0
   while i < self.order.length() {
     let k = self.order[i]
@@ -684,7 +671,7 @@ pub fn[K, V] OccupiedEntry::key(self : OccupiedEntry[K, V]) -> K {
 
 ///|
 /// Insert a value into this vacant entry, returning the value inserted.
-pub fn[K, V] VacantEntry::insert(
+pub fn[K : Hash + Eq, V] VacantEntry::insert(
   self : VacantEntry[K, V],
   value : V,
 ) -> V {
@@ -736,11 +723,11 @@ pub fn[K : Hash + Eq, V] IndexMap::get_full(
 
 ///|
 /// Get the insertion-order index of the given key.
-pub fn[K : Eq, V] IndexMap::get_index_of(
+pub fn[K : Hash + Eq, V] IndexMap::get_index_of(
   self : IndexMap[K, V],
   key : K,
 ) -> Int? {
-  self.positions[key]
+  self.positions.get(key)
 }
 
 ///|
@@ -799,99 +786,66 @@ pub fn[K : Hash + Eq, V] IndexMap::pop(self : IndexMap[K, V]) -> (K, V)? {
 // ---------------------------------------------------------------------------
 
 ///|
-/// Return an iterator over (key, value) pairs in insertion order.
-pub fn[K, V] IndexMap::iter(self : IndexMap[K, V]) -> MapIter[K, V] {
-  { map: self, pos: 0 }
-}
-
-///|
-/// Return an iterator over keys in insertion order.
-pub fn[K, V] IndexMap::keys(self : IndexMap[K, V]) -> MapKeys[K, V] {
-  { map: self, pos: 0 }
-}
-
-///|
-/// Return an iterator over values in insertion order.
-pub fn[K, V] IndexMap::values(
-  self : IndexMap[K, V],
-) -> MapValues[K, V] {
-  { map: self, pos: 0 }
-}
-
-///|
-/// Advance the entry iterator.
-pub fn[K : Hash + Eq, V] MapIter::next(self : MapIter[K, V]) -> (K, V)? {
-  while self.pos < self.map.order.length() {
-    let key = self.map.order[self.pos]
-    self.pos = self.pos + 1
-    match self.map.get(key) {
-      Some(v) => return Some((key, v))
-      None => continue
-    }
-  }
-  None
-}
-
-///|
-/// Advance the key iterator.
-pub fn[K : Hash + Eq, V] MapKeys::next(self : MapKeys[K, V]) -> K? {
-  while self.pos < self.map.order.length() {
-    let key = self.map.order[self.pos]
-    self.pos = self.pos + 1
-    let (idx, found) = self.map.probe_find(key, key.hash())
-    if found {
-      match self.map.buckets[idx] {
-        Some(entry) => if entry.hash != TOMBSTONE_HASH { return Some(key) }
-        None => continue
+/// Return a lazy iterator over (key, value) pairs in insertion order.
+/// Supports `for (k, v) in map { ... }` syntax.
+pub fn[K : Hash + Eq, V] IndexMap::iter(self : IndexMap[K, V]) -> Iter[(K, V)] {
+  let mut pos = 0
+  let len = self.order.length()
+  Iter::new(
+    fn() -> (K, V)? {
+      while pos < len {
+        let key = self.order[pos]
+        pos = pos + 1
+        match self.get(key) {
+          Some(v) => return Some((key, v))
+          None => continue
+        }
       }
-    }
-  }
-  None
+      None
+    },
+    size_hint=len,
+  )
 }
 
 ///|
-/// Advance the value iterator.
-pub fn[K : Hash + Eq, V] MapValues::next(self : MapValues[K, V]) -> V? {
-  while self.pos < self.map.order.length() {
-    let key = self.map.order[self.pos]
-    self.pos = self.pos + 1
-    let (idx, found) = self.map.probe_find(key, key.hash())
-    if found {
-      match self.map.buckets[idx] {
-        Some(entry) => if entry.hash != TOMBSTONE_HASH { return Some(entry.value) }
-        None => continue
+/// Return a lazy iterator over keys in insertion order.
+pub fn[K : Hash + Eq, V] IndexMap::keys(self : IndexMap[K, V]) -> Iter[K] {
+  let mut pos = 0
+  let len = self.order.length()
+  Iter::new(
+    fn() -> K? {
+      while pos < len {
+        let key = self.order[pos]
+        pos = pos + 1
+        if self.contains(key) {
+          return Some(key)
+        }
       }
-    }
-  }
-  None
+      None
+    },
+    size_hint=len,
+  )
 }
 
 ///|
-/// Collect all remaining iterator entries into an Array.
-pub fn[K : Hash + Eq, V] MapIter::collect(self : MapIter[K, V]) -> Array[(K, V)] {
-  let result = []
-  while true {
-    match self.next() {
-      Some(entry) => result.push(entry)
-      None => break
-    }
-  }
-  result
-}
-
-///|
-/// Return the number of entries the iterator has left to yield.
-pub fn[K : Hash + Eq, V] MapIter::count_remaining(self : MapIter[K, V]) -> Int {
-  let mut count = 0
-  let mut i = self.pos
-  while i < self.map.order.length() {
-    let key = self.map.order[i]
-    if self.map.contains(key) {
-      count = count + 1
-    }
-    i = i + 1
-  }
-  count
+/// Return a lazy iterator over values in insertion order.
+pub fn[K : Hash + Eq, V] IndexMap::values(self : IndexMap[K, V]) -> Iter[V] {
+  let mut pos = 0
+  let len = self.order.length()
+  Iter::new(
+    fn() -> V? {
+      while pos < len {
+        let key = self.order[pos]
+        pos = pos + 1
+        match self.get(key) {
+          Some(v) => return Some(v)
+          None => continue
+        }
+      }
+      None
+    },
+    size_hint=len,
+  )
 }
 
 ///|
@@ -971,7 +925,7 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
   let entries = self.iter().collect()
   entries.sort_by(fn(a, b) { a.0.compare(b.0) })
   self.order = []
-  self.positions = Map::new()
+  self.positions = Map([])
   let mut i = 0
   while i < entries.length() {
     let (k, _) = entries[i]
@@ -1006,7 +960,7 @@ pub fn[K : Hash + Eq, V] IndexMap::sort_by(
   let entries = self.iter().collect()
   entries.sort_by(cmp)
   self.order = []
-  self.positions = Map::new()
+  self.positions = Map([])
   let mut i = 0
   while i < entries.length() {
     let (k, _) = entries[i]
@@ -1053,7 +1007,7 @@ pub fn[K : Hash + Eq, V] IndexMap::extend(
 /// map.insert("b", 2)
 /// map.to_string() |> ignore
 /// ```
-impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V] with fn output(
+pub impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V] with fn output(
   self,
   logger,
 ) {
@@ -1079,14 +1033,14 @@ impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V] with fn output(
 
 ///|
 /// Debug implementation for IndexMap (insertion order).
-impl[K : Debug + Hash + Eq, V : Debug] Debug for IndexMap[K, V] with to_repr(self) {
+pub impl[K : Debug + Hash + Eq, V : Debug] Debug for IndexMap[K, V] with fn to_repr(
+  self,
+) {
   let entries : Array[(Repr, Repr)] = []
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => {
-        entries.push((to_repr(k), to_repr(v)))
-      }
+      Some((k, v)) => entries.push((to_repr(k), to_repr(v)))
       None => break
     }
   }
@@ -1095,7 +1049,7 @@ impl[K : Debug + Hash + Eq, V : Debug] Debug for IndexMap[K, V] with to_repr(sel
 
 ///|
 /// Hash implementation for IndexMap (hashes entries in insertion order).
-impl[K : Hash + Eq, V : Hash] Hash for IndexMap[K, V] with fn hash_combine(
+pub impl[K : Hash + Eq, V : Hash] Hash for IndexMap[K, V] with fn hash_combine(
   self,
   hasher,
 ) {
@@ -1113,7 +1067,7 @@ impl[K : Hash + Eq, V : Hash] Hash for IndexMap[K, V] with fn hash_combine(
 
 ///|
 /// Equality comparison for IndexMap.
-impl[K : Hash + Eq, V : Eq] Eq for IndexMap[K, V] with fn equal(self, other) {
+pub impl[K : Hash + Eq, V : Eq] Eq for IndexMap[K, V] with fn equal(self, other) {
   if self.len != other.len() {
     return false
   }
@@ -1134,14 +1088,14 @@ impl[K : Hash + Eq, V : Eq] Eq for IndexMap[K, V] with fn equal(self, other) {
 
 ///|
 /// Serialize an IndexMap to JSON, preserving insertion order.
-impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with to_json(self) {
-  let obj : Map[String, Json] = Map::new()
+pub impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with fn to_json(
+  self,
+) {
+  let obj : Map[String, Json] = Map([])
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => {
-        obj[k.to_json().to_string()] = v.to_json()
-      }
+      Some((k, v)) => obj[k.to_json().to_string()] = v.to_json()
       None => break
     }
   }
@@ -1154,10 +1108,10 @@ impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with to_json(
 
 ///|
 /// Generate random IndexMap values for property-based testing.
-impl[K : Arbitrary + Hash + Eq, V : Arbitrary] Arbitrary for IndexMap[K, V] with fn arbitrary(
-  size,
-  r0,
-) {
+pub impl[K : @quickcheck.Arbitrary + Hash + Eq, V : @quickcheck.Arbitrary] @quickcheck.Arbitrary for IndexMap[
+  K,
+  V,
+] with fn arbitrary(size, r0) {
   let entries : Array[(K, V)] = @quickcheck.Arbitrary::arbitrary(size, r0)
   IndexMap::from_array(entries)
 }

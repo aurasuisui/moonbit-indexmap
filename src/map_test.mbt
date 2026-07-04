@@ -2,7 +2,7 @@
 
 ///|
 test "new map is empty" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.len(), content="0")
   inspect(map.is_empty(), content="true")
 }
@@ -27,7 +27,7 @@ test "insert overwrites existing" {
 
 ///|
 test "get missing key" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.get("missing"), content="None")
 }
 
@@ -322,7 +322,7 @@ test "delete middle element preserves order" {
 
 ///|
 test "empty map edge cases" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.len(), content="0")
   inspect(map.is_empty(), content="true")
   inspect(map.get("any"), content="None")
@@ -385,7 +385,7 @@ test "pop removes last inserted" {
 
 ///|
 test "pop on empty returns none" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.pop(), content="None")
 }
 
@@ -472,7 +472,7 @@ test "for_each iteration" {
 
 ///|
 test "for_each empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   let mut count = 0
   map.for_each(fn(_k, _v) { count = count + 1 })
   inspect(count, content="0")
@@ -508,7 +508,7 @@ test "drain collects all entries" {
 
 ///|
 test "drain on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   let drained = map.drain()
   inspect(drained.length(), content="0")
 }
@@ -594,16 +594,13 @@ test "values iterator" {
 }
 
 ///|
-test "iter count_remaining" {
+test "iter count via collect equals len" {
   let map = @aurasuisui/indexmap.new()
-  inspect(map.iter().count_remaining(), content="0")
+  inspect(map.iter().collect().length(), content="0")
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
-  let iter = map.iter()
-  inspect(iter.count_remaining(), content="3")
-  iter.next() |> ignore
-  inspect(iter.count_remaining(), content="2")
+  inspect(map.iter().collect().length(), content="3")
 }
 
 ///|
@@ -648,7 +645,8 @@ test "entry api occupied key" {
   let map = @aurasuisui/indexmap.new()
   map.insert("mykey", 1) |> ignore
   match map.entry("mykey") {
-    @aurasuisui/indexmap.Occupied(entry) => inspect(entry.key(), content="mykey")
+    @aurasuisui/indexmap.Occupied(entry) =>
+      inspect(entry.key(), content="mykey")
     @aurasuisui/indexmap.Vacant(_) => @test.fail("expected Occupied")
   }
 }
@@ -792,8 +790,8 @@ test "eq trait different order not equal" {
 
 ///|
 test "eq trait empty maps" {
-  let a = @aurasuisui/indexmap.new()
-  let b = @aurasuisui/indexmap.new()
+  let a : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
+  let b : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(a.len() == b.len(), content="true")
   inspect(a.is_empty() == b.is_empty(), content="true")
 }
@@ -856,7 +854,7 @@ test "retain removes all" {
 
 ///|
 test "reserve on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.reserve(100)
   inspect(map.capacity() >= 100, content="true")
   inspect(map.is_empty(), content="true")
@@ -904,7 +902,9 @@ test "large values" {
 
 ///|
 test "zero capacity" {
-  let map = @aurasuisui/indexmap.with_capacity(0)
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.with_capacity(
+    0,
+  )
   inspect(map.capacity(), content="16")
   inspect(map.is_empty(), content="true")
 }
@@ -920,28 +920,28 @@ test "shrink_to_fit already minimal" {
 
 ///|
 test "extend empty array" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.extend([])
   inspect(map.is_empty(), content="true")
 }
 
 ///|
 test "sort_by_key on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.sort_by_key()
   inspect(map.is_empty(), content="true")
 }
 
 ///|
 test "sort_by on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.sort_by(fn(_e1, _e2) { 0 })
   inspect(map.is_empty(), content="true")
 }
 
 ///|
 test "retain on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.retain(fn(_k, _v) { true })
   inspect(map.is_empty(), content="true")
 }
@@ -997,33 +997,34 @@ test "get_index_of after removal" {
 }
 
 ///|
-test "iter count_remaining on empty" {
-  let map = @aurasuisui/indexmap.new()
-  inspect(map.iter().count_remaining(), content="0")
+test "iter on empty returns no elements" {
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
+  let collected = map.iter().collect()
+  inspect(collected.length(), content="0")
 }
 
 ///|
 test "keys iterator on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.keys().next(), content="None")
 }
 
 ///|
 test "values iterator on empty map" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.values().next(), content="None")
 }
 
 ///|
 test "iter collect on empty" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   let collected = map.iter().collect()
   inspect(collected.length(), content="0")
 }
 
 ///|
 test "reserve zero" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   let cap_before = map.capacity()
   map.reserve(0)
   inspect(map.capacity(), content="\{cap_before}")
@@ -1227,7 +1228,9 @@ test "reserve smaller than current capacity" {
 
 ///|
 test "with_capacity large power of two check" {
-  let map = @aurasuisui/indexmap.with_capacity(1000)
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.with_capacity(
+    1000,
+  )
   inspect(map.capacity() >= 1000, content="true")
 }
 
@@ -1301,13 +1304,18 @@ test "IndexMap copy preserves entries and order" {
 test "IndexMap get_mut modifies value" {
   let map = @aurasuisui/indexmap.new()
   map.insert("key", 1) |> ignore
-  map.get_mut("key", fn(v) { match v { Some(x) => Some(x + 10); None => None } })
+  map.get_mut("key", fn(v) {
+    match v {
+      Some(x) => Some(x + 10)
+      None => None
+    }
+  })
   inspect(map.get("key"), content="Some(11)")
 }
 
 ///|
 test "IndexMap get_mut on missing key" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.get_mut("missing", fn(_v) { None })
 }
 

@@ -5,7 +5,9 @@
 
 ///|
 test "qc: generated IndexMap length matches iteration count" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, String]] = @quickcheck.samples(20)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, String]] = @quickcheck.samples(
+    20,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
@@ -35,7 +37,9 @@ test "qc: generated IndexSet has no duplicates" {
 
 ///|
 test "qc: insert then get roundtrip" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(10)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(
+    10,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
@@ -55,7 +59,9 @@ test "qc: insert then get roundtrip" {
 
 ///|
 test "qc: remove all then is empty" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(10)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(
+    10,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
@@ -85,17 +91,19 @@ test "qc: entry API vacant then occupied roundtrip" {
       @aurasuisui/indexmap.Occupied(_) => @test.fail("expected Vacant")
     }
     match map.entry(test_key) {
-      @aurasuisui/indexmap.Occupied(entry) => {
+      @aurasuisui/indexmap.Occupied(entry) =>
         inspect(entry.get(), content="generated")
-      }
-      @aurasuisui/indexmap.Vacant(_) => @test.fail("expected Occupied after insert")
+      @aurasuisui/indexmap.Vacant(_) =>
+        @test.fail("expected Occupied after insert")
     }
   }
 }
 
 ///|
 test "qc: iteration preserves insertion order after generation" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(10)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(
+    10,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
@@ -132,7 +140,9 @@ test "qc: IndexSet retains order after generation" {
 
 ///|
 test "qc: generated map positions are consistent" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(10)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(
+    10,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
@@ -143,7 +153,8 @@ test "qc: generated map positions are consistent" {
         Some((k, _)) => {
           match map.get_index_of(k) {
             Some(pos) => inspect(pos, content="\{idx}")
-            None => @test.fail("get_index_of should return position for existing key")
+            None =>
+              @test.fail("get_index_of should return position for existing key")
           }
           idx = idx + 1
         }
@@ -156,7 +167,9 @@ test "qc: generated map positions are consistent" {
 
 ///|
 test "qc: copy preserves all data" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(10)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[Int, Int]] = @quickcheck.samples(
+    10,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
@@ -189,13 +202,15 @@ test "qc: IndexSet subset implies superset" {
 
 ///|
 test "qc: to_json roundtrip preserves count" {
-  let maps : Array[@aurasuisui/indexmap.IndexMap[String, Int]] = @quickcheck.samples(10)
+  let maps : Array[@aurasuisui/indexmap.IndexMap[String, Int]] = @quickcheck.samples(
+    10,
+  )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
     let json = map.to_json()
     // JSON should be a valid object
-    inspect(json.is_object(), content="true")
+    inspect(json is Object(_), content="true")
     i = i + 1
   }
 }

@@ -2,7 +2,7 @@
 
 ///|
 test "new set is empty" {
-  let set = @aurasuisui/indexmap.IndexSet::new()
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.len(), content="0")
   inspect(set.is_empty(), content="true")
 }
@@ -131,14 +131,16 @@ test "set large insert" {
 
 ///|
 test "set capacity" {
-  let set = @aurasuisui/indexmap.IndexSet::with_capacity(64)
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::with_capacity(
+    64,
+  )
   inspect(set.capacity(), content="64")
   inspect(set.is_empty(), content="true")
 }
 
 ///|
 test "set empty operations" {
-  let a = @aurasuisui/indexmap.IndexSet::new()
+  let a : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   let b = @aurasuisui/indexmap.IndexSet::new()
   inspect(a.is_disjoint(b), content="true")
   inspect(a.is_subset(b), content="true")
@@ -307,13 +309,13 @@ test "set large subset check" {
 
 ///|
 test "set with_capacity default" {
-  let set = @aurasuisui/indexmap.IndexSet::new()
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.capacity(), content="16")
 }
 
 ///|
 test "set empty retain" {
-  let set = @aurasuisui/indexmap.IndexSet::new()
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   set.retain(fn(_x) { true })
   inspect(set.is_empty(), content="true")
 }
@@ -355,7 +357,7 @@ test "set superset equal sets" {
 
 ///|
 test "set iterate empty" {
-  let set = @aurasuisui/indexmap.IndexSet::new()
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   inspect(set.iter().next(), content="None")
 }
 
@@ -422,7 +424,9 @@ test "set first and last via iteration" {
 
 ///|
 test "set with_capacity zero" {
-  let set = @aurasuisui/indexmap.IndexSet::with_capacity(0)
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::with_capacity(
+    0,
+  )
   inspect(set.capacity(), content="16")
   inspect(set.is_empty(), content="true")
 }
@@ -477,7 +481,7 @@ test "set drain" {
 
 ///|
 test "set drain empty" {
-  let set = @aurasuisui/indexmap.IndexSet::new()
+  let set : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   let drained = set.drain()
   inspect(drained.length(), content="0")
 }
@@ -568,7 +572,7 @@ test "IndexSet Eq different length not equal" {
 
 ///|
 test "IndexSet Eq empty sets equal" {
-  let a = @aurasuisui/indexmap.IndexSet::new()
+  let a : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   let b = @aurasuisui/indexmap.IndexSet::new()
   inspect(a == b, content="true")
 }

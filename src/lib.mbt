@@ -36,12 +36,12 @@ pub const VERSION : String = "0.2.0"
 
 ///|
 /// Create a new, empty IndexMap.
-pub fn[K, V] new() -> IndexMap[K, V] {
+pub fn[K : Hash + Eq, V] new() -> IndexMap[K, V] {
   IndexMap::new()
 }
 
 ///|
 /// Create a new IndexMap with the given initial capacity.
-pub fn[K, V] with_capacity(cap : Int) -> IndexMap[K, V] {
+pub fn[K : Hash + Eq, V] with_capacity(cap : Int) -> IndexMap[K, V] {
   IndexMap::with_capacity(cap)
 }

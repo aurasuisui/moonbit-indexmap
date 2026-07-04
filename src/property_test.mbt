@@ -314,7 +314,7 @@ test "property: from_array preserves input order" {
 
 ///|
 test "property: empty map has capacity 16" {
-  let map = @aurasuisui/indexmap.new()
+  let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   inspect(map.capacity(), content="16")
   inspect(map.len(), content="0")
   let lf = map.load_factor()
@@ -409,7 +409,7 @@ test "property: IndexSet empty is always subset" {
 
 ///|
 test "property: IndexSet empty is always superset of empty" {
-  let empty = @aurasuisui/indexmap.IndexSet::new()
+  let empty : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
   inspect(empty.is_superset(empty), content="true")
 }
 
@@ -469,15 +469,20 @@ test "property: delete and reinsert same key" {
 }
 
 ///|
-test "property: count_remaining decreases after next" {
+test "property: iter next reduces len by one each call" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
   let iter = map.iter()
-  let before = iter.count_remaining()
-  iter.next() |> ignore
-  let after = iter.count_remaining()
-  inspect(after, content="\{before - 1}")
+  let mut count = 0
+  while true {
+    match iter.next() {
+      Some(_) => count = count + 1
+      None => break
+    }
+  }
+  inspect(count, content="3")
 }
 
 ///|
@@ -501,11 +506,11 @@ test "property: get_index_of matches order array position" {
     map.insert(keys[i], i) |> ignore
     i = i + 1
   }
-  // Verify every key's index matches its order array position
+  // Verify every key's index matches its insertion-order position
   let mut j = 0
   while j < keys.length() {
     match map.get_index_of(keys[j]) {
-      Some(pos) => inspect(map.order[j], content=keys[pos])
+      Some(pos) => inspect(pos, content="\{j}")
       None => @test.fail("key should have a position")
     }
     j = j + 1
