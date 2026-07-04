@@ -9,7 +9,7 @@
 git clone https://github.com/aurasuisui/moonbit-indexmap
 cd moonbit-indexmap
 moon check   # Type check (0 errors)
-moon test    # Run 236+ tests
+moon test    # Run 253 tests
 moon fmt     # Format code
 ```
 
@@ -26,7 +26,8 @@ moon fmt     # Format code
 │   ├── set_test.mbt      # Black-box tests for IndexSet (50 tests)
 │   ├── bench_test.mbt    # Correctness-under-load tests (36 tests)
 │   ├── property_test.mbt # Invariant/property tests (47 tests)
-│   └── moon.pkg.json     # Package config (test-only import)
+│   ├── arbitrary_test.mbt # QuickCheck property tests (11 tests)
+│   └── moon.pkg          # Package config (test-only import)
 ├── .github/workflows/ci.yml
 ├── README.md
 ├── CHANGELOG.md
@@ -58,7 +59,7 @@ IndexMap uses two parallel arrays:
 IndexMap[K, V]
 ├── buckets:   Array[Entry[K, V]?]  ← Robin Hood hash table
 ├── order:     Array[K]             ← Insertion-order log
-└── positions: Map[K, Int]          ← Key → index lookup (O(1) remove)
+└── positions: Map[K, Int]          ← Key → index lookup (O(1) get_index_of)
 ```
 
 **Buckets** is the hash table. Each slot is `Entry[K, V]?` — `None` means empty, `Some(entry)` means occupied. Deleted entries become **tombstones**: their `hash` is set to `TOMBSTONE_HASH (-1)` but the slot stays `Some`.
@@ -115,7 +116,10 @@ When not found, prefers tombstone slots over empty slots for the insertion point
 Insert with displacement. If `existing.distance < dist`, the new entry steals the slot.
 
 **`remove_from_order(key) -> Unit`**
-O(1) swap-remove using `positions: Map[K, Int]`. Swaps the target with the last element, updates both positions, then pops. Called by: `remove`, `get_mut`, `retain`.
+O(n) shift-remove using `positions: Map[K, Int]`. Shifts elements after the target one slot
+left (fixing their positions), then pops the last slot. This preserves the insertion order of
+remaining elements — the core ordering guarantee of IndexMap. Called by: `remove`, `get_mut`,
+`retain`. (`swap_remove_index(i)` is the only O(1) removal path and is explicitly order-breaking.)
 
 **`rehash(new_cap) -> Unit`**
 Rebuild buckets from scratch using entries in insertion order. Clears all tombstones.
@@ -136,15 +140,21 @@ The tombstone pattern (setting `entry.hash = TOMBSTONE_HASH` while keeping `Some
 
 ### Iteration: How Order Is Preserved
 
+`iter()`, `keys()`, and `values()` each return a lazy built-in `Iter[T]` built via
+`Iter::new(fn() -> T? { ... }, size_hint=len)`. The closure captures a mutable `pos` cursor
+into `self.order` and, on each `next()`, walks forward looking up the key in the hash table:
+
 ```
-MapIter::next():
-  for each key in self.map.order[pos..]:
-    let val = self.map.get(key)   // lookup in hash table
-    if val is Some → return (key, val)   // key still exists
-    else → skip                           // key was deleted, skip silently
+iter().next():
+  advance pos through self.order:
+    let val = self.get(key)   // lookup in hash table
+    if val is Some → yield (key, val)   // key still exists
+    else → skip                          // key was deleted, skip silently
+  when pos reaches the end → yield None
 ```
 
-`MapKeys::next()` and `MapValues::next()` do direct bucket inspection (checking `TOMBSTONE_HASH`) instead of calling `get()` — an optimization that avoids trait bounds.
+This supports `for (k, v) in map { ... }` syntax. A consuming `IntoMapIter` (returned by
+`into_iter()`) owns the drained entries and does not need table lookups.
 
 ### Memory Layout Invariants
 
@@ -211,12 +221,12 @@ test "descriptive name in english" {
 }
 ```
 
-All tests use `@aurasuisui/indexmap.` prefix (black-box testing). The `moon.pkg.json` imports `moonbitlang/core/test` for the `inspect` and `@test.fail` functions.
+All tests use `@aurasuisui/indexmap.` prefix (black-box testing). The `moon.pkg` imports `moonbitlang/core/test` for the `inspect` and `@test.fail` functions.
 
 ### Running Tests
 
 ```bash
-moon test                    # All 220 tests
+moon test                    # All 253 tests
 moon test --test-filter "bench"   # Only bench tests
 moon test --test-filter "property" # Only property tests
 ```
@@ -226,7 +236,7 @@ moon test --test-filter "property" # Only property tests
 ## Known Issues & Gotchas
 
 ### 1. ~~VERSION mismatch~~ ✅ Fixed
-`lib.mbt`, `moon.mod.json`, and test now all read "0.2.0".
+`lib.mbt`, `moon.mod`, and test now all read "0.2.0".
 
 ### 2. ~~Dead code in hash.mbt~~ ✅ Fixed
 Unused constants and functions removed. Only `LOAD_FACTOR_NUMERATOR` and `LOAD_FACTOR_DENOMINATOR` remain (used by `map.mbt`).
@@ -259,7 +269,8 @@ The rehash function has its own copy of the Robin Hood insertion loop instead of
 ### v0.3.0 — Performance & Polish (current)
 See [IMPROVEMENT.md](IMPROVEMENT.md) for the detailed plan.
 
-- [x] O(1) `remove` via swap-remove + position map
+- [x] Order-preserving `remove` via shift-remove + position map (O(n), preserves insertion order)
+- [x] Migrate iterators to built-in `Iter[T]`; adapt to moon 0.1.20260629 toolchain
 - [x] Fix VERSION to 0.2.0
 - [x] Remove dead code (hash.mbt unused functions, alias, sort wrappers)
 - [x] Fix `get_mut` deletion to use tombstone pattern

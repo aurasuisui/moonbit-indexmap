@@ -6,29 +6,40 @@ All notable changes to moonbit-indexmap will be documented in this file.
 
 ### Changed
 - **Module renamed** from `indexmap` to `aurasuisui/indexmap` for mooncakes.io publishing
-- **O(1) remove**: `remove_from_order` rewritten from linear scan (O(n)) to swap-remove with position map
-- **O(1) get_index_of**: now uses direct position lookup instead of linear scan
-- **O(1) last / pop**: simplified without fallback loops
-- `retain` rewritten as collect-then-remove to work with swap-remove semantics
+- **Order-preserving remove**: `remove_from_order` uses shift-remove (O(n)) so the insertion
+  order of remaining elements is preserved. (A swap-remove prototype broke ordering and was
+  reverted before release.)
+- `get_index_of` uses direct position lookup; `last` / `pop` simplified without fallback loops
+- `retain` rewritten as collect-then-remove, compatible with shift-remove semantics
+- **Iterators migrated to built-in `Iter[T]`**: `iter()`, `keys()`, `values()` now return
+  `Iter[(K, V)]` / `Iter[K]` / `Iter[V]` via `Iter::new`, supporting `for x in map { ... }`.
+  The old custom `MapIter` / `MapKeys` / `MapValues` structs are removed; `count_remaining`
+  is no longer available on these iterators (use `.collect().length()`).
+- **Toolchain compatibility (moon 0.1.20260629)**: `Map::at` now returns `V` (use `Map::get`
+  for `V?`); `Arbitrary` impls qualified as `@quickcheck.Arbitrary` and declared `pub impl`;
+  `Map::new()` replaced with `Map([])`; exported `Show`/`Debug`/`Hash`/`Eq`/`ToJson` impls
+  marked `pub impl`; project config migrated to `moon.mod` / `moon.pkg` format.
+- Test count now 253 (was 220 at v0.2.0)
 
 ### Added
 - `Eq` and `Hash` trait implementations for IndexSet (6 new tests)
 - Examples directory: `config_parse.mbt`, `lru_cache.mbt`, `json_order.mbt`
 - Benchmark comparison tests: IndexMap vs built-in Map (6 new tests)
-- 10 new property tests for swap-remove invariants (order, positions, retain)
+- 10 new property tests for remove/retain ordering invariants
 - `Arbitrary` trait implementations for IndexMap and IndexSet (QuickCheck support)
 - 11 QuickCheck property tests in `arbitrary_test.mbt`
-
-### Changed
-- **Iterator types renamed**: `Iter`→`MapIter`, `IntoIter`→`IntoMapIter`, `Keys`→`MapKeys`, `Values`→`MapValues` (avoid conflict with built-in `Iter[T]` type)
+- GitHub issue/PR templates and CODEOWNERS
 
 ### Fixed
 - `get_mut` deletion now uses tombstone pattern (was setting bucket to `None`, breaking probe chains)
-- VERSION fixed to "0.2.0" in `lib.mbt`, `moon.mod.json`, and test
+- VERSION fixed to "0.2.0" in `lib.mbt`, `moon.mod`, and test
+- CI workflow referenced a non-existent `actions/setup-moonbit`; switched to `hustcer/setup-moonbit@v1`
+  and added `moon fmt --check` + `moon build` steps
 
 ### Removed
 - Dead code: `robin_hood_find_or_insertion_point` alias, unused `sort_entries`/`sort_entries_by` wrappers
 - Dead code from `hash.mbt`: unused constants and functions
+- Custom `MapIter` / `MapKeys` / `MapValues` iterator structs (replaced by built-in `Iter[T]`)
 
 ## [0.2.0] - 2026-06-10
 

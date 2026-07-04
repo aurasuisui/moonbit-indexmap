@@ -1,6 +1,7 @@
 # moonbit-indexmap
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![CI](https://github.com/aurasuisui/moonbit-indexmap/actions/workflows/ci.yml/badge.svg)](https://github.com/aurasuisui/moonbit-indexmap/actions/workflows/ci.yml)
 
 A hash map that preserves insertion order — MoonBit port of Rust's [`indexmap`](https://github.com/indexmap-rs/indexmap) crate.
 
@@ -90,6 +91,16 @@ Deletion uses tombstone markers to preserve probe chains, with automatic rehash 
 | Iteration order | Undefined | Insertion order |
 | Index access | No | Yes |
 | Memory | Lower | ~2× (order array) |
+
+## Examples
+
+See [`examples/`](examples/) for complete, documented use cases:
+
+- [`lru_cache.mbt`](examples/lru_cache.mbt) — fixed-capacity LRU cache built on IndexMap
+- [`config_parse.mbt`](examples/config_parse.mbt) — order-preserving `key=value` config parser using the Entry API
+- [`json_order.mbt`](examples/json_order.mbt) — JSON serialization that preserves key order via `ToJson`
+
+Copy an example into your project and import `@aurasuisui/indexmap` to run it.
 
 ## Development
 

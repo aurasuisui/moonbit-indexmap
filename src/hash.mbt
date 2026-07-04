@@ -1,4 +1,4 @@
-// Copyright (c) 2024 moonbit-indexmap contributors
+// Copyright (c) 2024-2026 moonbit-indexmap contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Hash utilities for internal use in IndexMap.

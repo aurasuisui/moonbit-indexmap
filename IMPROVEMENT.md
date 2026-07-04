@@ -25,15 +25,19 @@ Based on project evaluation against the MoonBit Open Source Ecosystem Competitio
 
 ## 🟡 P1 — Performance ✅ All Done
 
-### 4. ~~O(1) remove via swap-remove in order array~~ ✅
+### 4. ~~O(1) remove via swap-remove in order array~~ ✅ → reverted to shift-remove
 - [x] Added `mut positions : Map[K, Int]` field to `IndexMap`
-- [x] Rewrote `remove_from_order` to use swap-remove with positions
+- [x] Rewrote `remove_from_order` to use positions (originally swap-remove)
 - [x] Updated `insert()`, `VacantEntry::insert()` to record position
 - [x] Updated `swap_remove_index()` to use simplified remove()
 - [x] Updated `sort_by_key()`, `sort_by()` to rebuild positions
 - [x] Updated `clear()`, `copy()` to manage positions
-- [x] Rewrote `retain()` as collect-then-remove (safe with swap-remove)
+- [x] Rewrote `retain()` as collect-then-remove (safe with shift-remove)
 - [x] Simplified `last()`, `pop()` to O(1)
+- [x] **Reverted `remove_from_order` to shift-remove (O(n))**: swap-remove broke the
+  insertion order of remaining elements, which contradicts IndexMap's core guarantee.
+  `positions` is still used for O(1) `get_index_of`. `swap_remove_index()` remains
+  O(1) and explicitly order-breaking for callers that opt in.
 
 ### 5. ~~O(1) get_index_of via position map~~ ✅
 - [x] Replaced linear scan with `self.positions[key]`
