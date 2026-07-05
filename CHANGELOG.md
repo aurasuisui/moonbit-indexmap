@@ -2,6 +2,26 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [0.2.1] - 2026-07-05
+
+### Changed
+- Bumped version to 0.2.1 for re-publish to mooncakes.io (no code changes; v0.2.0 already on the registry)
+- **README Gotchas section**: documented the 1 confirmed bug + 4 design warnings found
+  by the independent `indexmap-test-suite` (get_mut same-key delete+insert data loss,
+  insertion-order-sensitive `Eq`/`Hash`, `swap_remove_index` is O(n) shift-remove,
+  stale `max_probe()` after `sort_by`/`sort_by_key`, fail-fast iterator invalidation)
+  as known limitations — no source code changed
+- **README Independent Test Report section**: linked the 485-test black-box suite
+- **examples/README.md** (new): clarified the three snippet files are copy-paste
+  examples, not a runnable package
+- **IMPROVEMENT.md**: corrected 6 stale items that no longer matched the source
+  after the iterator migration landed (v0.2.0 tag exists, `moon publish` done,
+  `for..in` supported via built-in `Iter[T]`, `Arbitrary` done, iterator-rename
+  plan superseded, `swap_remove_index` clarified) and fixed `moon.pkg.json` → `moon.pkg`
+- **CONTRIBUTING.md**: added `arbitrary_test.mbt` (11 tests) to the test table and
+  reconciled per-file counts to 253; added historical-record note to Known Issues
+- **CHANGELOG.md**: dropped references to the removed `ROADMAP.md` and `ARCHITECTURE.md`
+
 ## [Unreleased]
 
 ### Changed

@@ -1273,7 +1273,7 @@ test "resize during insert triggers rehash" {
 
 ///|
 test "library version" {
-  inspect(@aurasuisui/indexmap.VERSION, content="0.2.0")
+  inspect(@aurasuisui/indexmap.VERSION, content="0.2.1")
 }
 
 ///|
