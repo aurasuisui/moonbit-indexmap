@@ -91,16 +91,62 @@ Deletion uses tombstone markers to preserve probe chains, with automatic rehash 
 | Iteration order | Undefined | Insertion order |
 | Index access | No | Yes |
 | Memory | Lower | ~2× (order array) |
+| `Eq` / `Hash` semantics | Independent of insertion order | Dependent on insertion order |
+
+## Gotchas
+
+Known design choices and limitations — see the
+[independent test report](https://github.com/aurasuisui/indexmap-test-suite/blob/main/TEST_REPORT.md)
+for reproduction details.
+
+1. **`get_mut` callback: don't delete and re-insert the same key.** If the callback
+   calls `map.insert(same_key, ...)` and then returns `None`, the tombstone written
+   by `get_mut` clobbers the just-inserted value. Use `Some(new_val)` to update in
+   place instead.
+
+2. **`Eq` and `Hash` are insertion-order-sensitive.** Two maps with identical
+   key-value pairs but different insertion orders are *not* equal and produce
+   different hashes. Avoid using an `IndexMap` or `IndexSet` as a key in another
+   hash container unless you can guarantee consistent insertion order.
+
+3. **`swap_remove_index` is actually O(n) shift-remove.** Despite the name
+   (kept for Rust indexmap API compatibility), it calls the order-preserving
+   `remove` path — elements after the target are shifted one slot left. It does
+   *not* swap with the last element in O(1). If you need O(1) order-breaking
+   removal, use `swap_remove_index` (it *is* order-breaking by name, but the
+   implementation currently preserves order).
+
+4. **`sort_by` / `sort_by_key` does not refresh `max_probe()`.** Sorting rebuilds
+   `order[]` and `positions[]` but leaves the underlying hash-table buckets
+   untouched. The value returned by `max_probe()` reflects the pre-sort probe
+   distribution — it will be stale after sorting.
+
+5. **Don't mutate the map while an iterator is active.** Iterators hold a cursor
+   into the order array; `insert` or `remove` during iteration causes an
+   out-of-bounds crash (fail-fast). Finish all mutations first, then create a
+   fresh iterator.
+
+## Independent Test Report
+
+An independent black-box test suite ([`indexmap-test-suite`](https://github.com/aurasuisui/indexmap-test-suite))
+verified this library with **485 tests** (253 library self-tests + 232 external
+tests covering every public API, stress up to 100k entries, property-based
+invariants, and edge-case traps).
+
+Conclusion: **production-ready for single-threaded use.** Known caveats are
+documented in the [Gotchas](#gotchas) section above.
 
 ## Examples
 
-See [`examples/`](examples/) for complete, documented use cases:
+See [`examples/`](examples/) for copy-paste snippets demonstrating common patterns:
 
 - [`lru_cache.mbt`](examples/lru_cache.mbt) — fixed-capacity LRU cache built on IndexMap
 - [`config_parse.mbt`](examples/config_parse.mbt) — order-preserving `key=value` config parser using the Entry API
 - [`json_order.mbt`](examples/json_order.mbt) — JSON serialization that preserves key order via `ToJson`
 
-Copy an example into your project and import `@aurasuisui/indexmap` to run it.
+Usage: copy a snippet into your project, add `import { "aurasuisui/indexmap" }`
+to your `moon.pkg`, and run. See [`examples/README.md`](examples/README.md) for
+details.
 
 ## Development
 

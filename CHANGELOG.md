@@ -57,7 +57,7 @@ All notable changes to moonbit-indexmap will be documented in this file.
 - Removed unused trait bounds from 8 internal functions ([0053] warnings fixed)
 - Streamlined `probe_find`, `robin_hood_find`, `get_index_of`, `iter`, `values` signatures
 - Eliminated unused variables in property tests ([0002] warnings fixed)
-- Updated ROADMAP.md and CHANGELOG.md
+- Updated CHANGELOG.md
 
 ## [0.1.0] - 2026-05-25
 
@@ -76,4 +76,4 @@ All notable changes to moonbit-indexmap will be documented in this file.
 - Trait implementations: `Show`, `Hash`, `Eq` for IndexMap; `Show` for IndexSet
 - Comprehensive test suite (157 tests): unit tests, benchmark tests, property-based tests
 - CI/CD pipeline with GitHub Actions
-- Documentation: README, ARCHITECTURE, CONTRIBUTING, ROADMAP, CHANGELOG
+- Documentation: README, CONTRIBUTING, CHANGELOG

@@ -205,9 +205,10 @@ Trait bounds must include `Hash + Eq` when the implementation iterates (which re
 | File | Type | Count | What It Tests |
 |------|------|-------|---------------|
 | `map_test.mbt` | Unit | 109 | Per-method correctness, edge cases, order |
-| `set_test.mbt` | Unit | 44 | IndexSet methods, set operations |
-| `property_test.mbt` | Invariant | 37 | Properties that hold across operations |
-| `bench_test.mbt` | Load | 30 | Correctness under scale (5k-10k entries) |
+| `set_test.mbt` | Unit | 50 | IndexSet methods, set operations |
+| `property_test.mbt` | Invariant | 47 | Properties that hold across operations |
+| `bench_test.mbt` | Load | 36 | Correctness under scale (5k-10k entries) |
+| `arbitrary_test.mbt` | QuickCheck | 11 | QuickCheck property tests for IndexMap + IndexSet |
 
 ### Test Convention
 
@@ -234,6 +235,10 @@ moon test --test-filter "property" # Only property tests
 ---
 
 ## Known Issues & Gotchas
+
+> **Note:** All items below are historical records from earlier development cycles
+> and have been resolved. For current known limitations, see the
+> [README Gotchas section](README.md#gotchas).
 
 ### 1. ~~VERSION mismatch~~ ✅ Fixed
 `lib.mbt`, `moon.mod`, and test now all read "0.2.0".
