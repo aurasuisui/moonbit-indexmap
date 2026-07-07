@@ -2,6 +2,31 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [0.3.0] - 2026-07-07
+
+### Breaking
+- **`extend` renamed to `extend_from_array`**: the method name `extend` is now a
+  reserved keyword in MoonBit (`[0035]`). `IndexMap::extend` and `IndexSet::extend`
+  are renamed to `extend_from_array`. Users upgrading from 0.2.x must update call sites.
+
+### Added
+- **Runnable example packages in `cmd/`**: three self-contained MoonBit programs —
+  `cmd/lru_cache` (LRU eviction demo), `cmd/config_parse` (order-preserving config parser),
+  `cmd/json_order` (JSON key-order demo). Run with `moon run cmd/<name>`.
+
+### Changed
+- **CI updated** to the competition's required 4-step pipeline: `moon fmt --check`,
+  `moon check`, `moon info && git diff --exit-code`, `moon test`, `moon build`.
+  Toolchain pinned to `0.1.20260703`. (Previously used `latest` and lacked `moon info`.)
+- **Removed deprecated `moon.mod.json`**: the toolchain now fully supports TOML
+  `moon.mod` for `moon publish`; the dual-manifest warning is eliminated.
+- **`src/pkg.generated.mbti`** committed and tracked; `moon info && git diff --exit-code`
+  in CI ensures it stays current with the public API.
+
+### Fixed
+- `config_parse` and `lru_cache` examples adapted to the 0.1.20260703 toolchain
+  (StringView from `split()`, `fn[V]` generic syntax, `starts_with` → `has_prefix`).
+
 ## [0.2.1] - 2026-07-05
 
 ### Changed

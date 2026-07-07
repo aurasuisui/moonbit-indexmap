@@ -10,7 +10,7 @@
 ///|
 fn main {
   // ---- IndexMap preserves key order in JSON ----
-  let ordered = @aurasuisui/indexmap.new()
+  let ordered = @indexmap.new()
   ordered.insert("name", "MoonBit IndexMap") |> ignore
   ordered.insert("version", "0.2.0") |> ignore
   ordered.insert("license", "Apache-2.0") |> ignore
@@ -34,7 +34,7 @@ fn main {
   // Keys may appear in any order
 
   // ---- IndexSet also preserves order in JSON ----
-  let tags = @aurasuisui/indexmap.IndexSet::new()
+  let tags = @indexmap.IndexSet::new()
   tags.insert("hashmap") |> ignore
   tags.insert("indexmap") |> ignore
   tags.insert("ordered") |> ignore
@@ -46,7 +46,7 @@ fn main {
   // Output: ["hashmap", "indexmap", "ordered", "data-structure"]
 
   // ---- Nested IndexMap example ----
-  let nested = @aurasuisui/indexmap.new()
+  let nested = @indexmap.new()
   nested.insert("server", ordered_json) |> ignore
   nested.insert("tags", tags_json) |> ignore
   println("=== Nested (both layers preserve order) ===")

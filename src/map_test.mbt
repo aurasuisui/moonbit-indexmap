@@ -518,7 +518,7 @@ test "extend from array" {
   let map = @aurasuisui/indexmap.new()
   map.insert("existing", 0) |> ignore
   let entries = [("a", 1), ("b", 2), ("c", 3)]
-  map.extend(entries)
+  map.extend_from_array(entries)
   inspect(map.len(), content="4")
   inspect(map.get("existing"), content="Some(0)")
   inspect(map.get("a"), content="Some(1)")
@@ -530,7 +530,7 @@ test "extend from array" {
 test "extend overwrites existing keys" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
-  map.extend([("a", 100), ("b", 200)])
+  map.extend_from_array([("a", 100), ("b", 200)])
   inspect(map.len(), content="2")
   inspect(map.get("a"), content="Some(100)")
   inspect(map.get("b"), content="Some(200)")
@@ -921,7 +921,7 @@ test "shrink_to_fit already minimal" {
 ///|
 test "extend empty array" {
   let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
-  map.extend([])
+  map.extend_from_array([])
   inspect(map.is_empty(), content="true")
 }
 
@@ -949,7 +949,7 @@ test "retain on empty map" {
 ///|
 test "extend then sort" {
   let map = @aurasuisui/indexmap.new()
-  map.extend([("c", 3), ("a", 1), ("d", 4), ("b", 2)])
+  map.extend_from_array([("c", 3), ("a", 1), ("d", 4), ("b", 2)])
   map.sort_by_key()
   let entries = map.iter().collect()
   inspect(entries[0], content="(a, 1)")
@@ -1192,7 +1192,7 @@ test "drain then extend" {
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   let drained = map.drain()
-  map.extend(drained)
+  map.extend_from_array(drained)
   inspect(map.len(), content="2")
   let entries = map.iter().collect()
   inspect(entries[0], content="(a, 1)")
@@ -1273,7 +1273,7 @@ test "resize during insert triggers rehash" {
 
 ///|
 test "library version" {
-  inspect(@aurasuisui/indexmap.VERSION, content="0.2.1")
+  inspect(@aurasuisui/indexmap.VERSION, content="0.3.0")
 }
 
 ///|

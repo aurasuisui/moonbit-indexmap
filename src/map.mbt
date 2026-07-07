@@ -982,7 +982,7 @@ pub fn[K : Hash + Eq, V] IndexMap::drain(
 
 ///|
 /// Extend the map with entries from an array of (key, value) pairs.
-pub fn[K : Hash + Eq, V] IndexMap::extend(
+pub fn[K : Hash + Eq, V] IndexMap::extend_from_array(
   self : IndexMap[K, V],
   entries : Array[(K, V)],
 ) -> Unit {

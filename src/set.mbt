@@ -210,7 +210,7 @@ pub fn[K : Hash + Eq] IndexSet::drain(self : IndexSet[K]) -> Array[K] {
 
 ///|
 /// Extend the set with elements from an array.
-pub fn[K : Hash + Eq] IndexSet::extend(
+pub fn[K : Hash + Eq] IndexSet::extend_from_array(
   self : IndexSet[K],
   elements : Array[K],
 ) -> Unit {

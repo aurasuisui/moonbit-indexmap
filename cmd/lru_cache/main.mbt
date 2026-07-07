@@ -11,20 +11,20 @@
 /// A fixed-size LRU cache backed by IndexMap.
 /// When capacity is exceeded, the least recently used entry is evicted.
 struct LRUCache[V] {
-  map : @aurasuisui/indexmap.IndexMap[String, V]
+  map : @indexmap.IndexMap[String, V]
   capacity : Int
 }
 
 ///|
 /// Create a new LRU cache with the given capacity.
-fn LRUCache::new(capacity~ : Int = 100) -> LRUCache[V] {
-  { map: @aurasuisui/indexmap.with_capacity(capacity), capacity }
+fn[V] LRUCache::new(capacity? : Int = 100) -> LRUCache[V] {
+  { map: @indexmap.with_capacity(capacity), capacity }
 }
 
 ///|
 /// Get a value from the cache. Returns `None` if not present.
 /// On a cache hit, the entry is moved to the end (most recently used).
-fn LRUCache::get(self : LRUCache[V], key : String) -> V? {
+fn[V] LRUCache::get(self : LRUCache[V], key : String) -> V? {
   match self.map.get(key) {
     Some(v) => {
       // Move to end: remove and re-insert
@@ -39,7 +39,7 @@ fn LRUCache::get(self : LRUCache[V], key : String) -> V? {
 ///|
 /// Insert a value into the cache.
 /// If the cache is full, evicts the least recently used entry (first in order).
-fn LRUCache::put(self : LRUCache[V], key : String, value : V) -> Unit {
+fn[V] LRUCache::put(self : LRUCache[V], key : String, value : V) -> Unit {
   // If key exists, remove it first (will be re-inserted at end)
   if self.map.contains(key) {
     self.map.remove(key) |> ignore
@@ -55,13 +55,13 @@ fn LRUCache::put(self : LRUCache[V], key : String, value : V) -> Unit {
 
 ///|
 /// Return the current number of entries in the cache.
-fn LRUCache::len(self : LRUCache[V]) -> Int {
+fn[V] LRUCache::len(self : LRUCache[V]) -> Int {
   self.map.len()
 }
 
 ///|
 /// Return true if the cache contains the key.
-fn LRUCache::contains(self : LRUCache[V], key : String) -> Bool {
+fn[V] LRUCache::contains(self : LRUCache[V], key : String) -> Bool {
   self.map.contains(key)
 }
 

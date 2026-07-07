@@ -26,7 +26,7 @@ MoonBit 内置的 `Map[K, V]` 不保证迭代顺序。在实际开发中，需�
 - 实现 Rust 风格的 Entry API（`entry()` 返回 Occupied/Vacant 视图），支持原地修改而无需重复查表；
 - 提供 `IndexSet[K]`（基于 IndexMap 构建的有序哈希集），支持 `is_disjoint`、`is_subset`、`is_superset` 等集合运算；
 - 支持按插入位置索引访问（`get_index`、`first`、`last`、`pop`）；
-- 支持 `retain`、`sort_by_key`、`drain`、`extend` 等批量操作；
+- 支持 `retain`、`sort_by_key`、`drain`、`extend_from_array` 等批量操作；
 - 实现 `Show`、`Hash`、`Eq` 标准 trait；
 - 提供不少于 40 个测试用例，覆盖基本操作、顺序保持、边界条件和高负载场景；
 - 提供 README 和 API 文档，说明安装方式、使用方法和可复现示例；

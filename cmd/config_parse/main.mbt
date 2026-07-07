@@ -10,17 +10,17 @@
 ///|
 /// Parse a simple key=value config string into an IndexMap,
 /// preserving the order keys appear in the input.
-fn parse_config(config_text : String) -> @aurasuisui/indexmap.IndexMap[String, String] {
-  let map = @aurasuisui/indexmap.new()
-  let lines = config_text.split("\n")
+fn parse_config(config_text : String) -> @indexmap.IndexMap[String, String] {
+  let map = @indexmap.new()
+  let lines = config_text.split("\n").collect()
   let mut i = 0
   while i < lines.length() {
     let line = lines[i].trim()
-    if line != "" && !line.starts_with("#") {
-      let parts = line.split("=")
+    if line != "" && !line.has_prefix("#") {
+      let parts = line.split("=").collect()
       if parts.length() >= 2 {
-        let key = parts[0].trim()
-        let value = parts[1].trim()
+        let key = parts[0].trim().to_owned()
+        let value = parts[1].trim().to_owned()
         map.insert(key, value) |> ignore
       }
     }
@@ -32,13 +32,14 @@ fn parse_config(config_text : String) -> @aurasuisui/indexmap.IndexMap[String, S
 ///|
 fn main {
   let config = parse_config(
-    #|server.host = 0.0.0.0
-    #|server.port = 8080
-    #|database.url = postgres://localhost:5432/mydb
-    #|database.pool_size = 10
-    #|logging.level = debug
-    #|logging.format = json
-    ,
+    (
+      #|server.host = 0.0.0.0
+      #|server.port = 8080
+      #|database.url = postgres://localhost:5432/mydb
+      #|database.pool_size = 10
+      #|logging.level = debug
+      #|logging.format = json
+    ),
   )
 
   // Iteration preserves the exact order from the config file
@@ -65,11 +66,7 @@ fn main {
 
   // Use entry API for conditional update
   match config.entry("server.host") {
-    @aurasuisui/indexmap.Occupied(entry) => {
-      println("Host configured: {entry.get()}")
-    }
-    @aurasuisui/indexmap.Vacant(_) => {
-      println("No host configured, using default")
-    }
+    @indexmap.Occupied(entry) => println("Host configured: {entry.get()}")
+    @indexmap.Vacant(_) => println("No host configured, using default")
   }
 }

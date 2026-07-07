@@ -131,7 +131,7 @@ test "property: extend N entries yields len N" {
     entries.push((i, i * 3))
     i = i + 1
   }
-  map.extend(entries)
+  map.extend_from_array(entries)
   inspect(map.len(), content="30")
 }
 

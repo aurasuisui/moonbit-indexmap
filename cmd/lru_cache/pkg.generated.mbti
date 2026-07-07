@@ -1,0 +1,14 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "cmd/lru_cache"
+
+// Values
+
+// Errors
+
+// Types and methods
+type LRUCache[V]
+
+// Type aliases
+
+// Traits
+

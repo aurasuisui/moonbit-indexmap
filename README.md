@@ -39,7 +39,7 @@ while true {
 Add to `moon.mod.json`:
 
 ```json
-{ "dependencies": { "aurasuisui/indexmap": "0.2.1" } }
+{ "dependencies": { "aurasuisui/indexmap": "0.3.0" } }
 ```
 
 Or clone directly:
@@ -61,7 +61,7 @@ git clone https://github.com/aurasuisui/moonbit-indexmap
 | Index | `get_index(i)`, `get_full(k)`, `get_index_of(k)`, `first()`, `last()`, `pop()`, `swap_remove_index(i)` |
 | Capacity | `reserve(n)`, `shrink_to_fit()` |
 | Iterate | `iter()`, `keys()`, `values()`, `for_each(f)`, `into_iter()`, `into_array()` |
-| Bulk | `retain(f)`, `sort_by_key()`, `sort_by(cmp)`, `drain()`, `extend(entries)` |
+| Bulk | `retain(f)`, `sort_by_key()`, `sort_by(cmp)`, `drain()`, `extend_from_array(entries)` |
 | Traits | `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` |
 
 ### IndexSet[K]
@@ -71,7 +71,7 @@ git clone https://github.com/aurasuisui/moonbit-indexmap
 | Construct | `new()`, `with_capacity(n)`, `from_array(elements)`, `default()`, `copy()` |
 | Core | `insert(v) -> Bool`, `contains(v) -> Bool`, `remove(v) -> Bool`, `clear()` |
 | Set ops | `is_disjoint(other)`, `is_subset(other)`, `is_superset(other)` |
-| Bulk | `retain(f)`, `drain()`, `extend(elements)`, `into_array()` |
+| Bulk | `retain(f)`, `drain()`, `extend_from_array(elements)`, `into_array()` |
 | Traits | `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` |
 
 ## Design
@@ -138,15 +138,15 @@ documented in the [Gotchas](#gotchas) section above.
 
 ## Examples
 
-See [`examples/`](examples/) for copy-paste snippets demonstrating common patterns:
+Run the examples directly (they're full MoonBit packages):
 
-- [`lru_cache.mbt`](examples/lru_cache.mbt) — fixed-capacity LRU cache built on IndexMap
-- [`config_parse.mbt`](examples/config_parse.mbt) — order-preserving `key=value` config parser using the Entry API
-- [`json_order.mbt`](examples/json_order.mbt) — JSON serialization that preserves key order via `ToJson`
+```bash
+moon run cmd/lru_cache      # LRU eviction demo
+moon run cmd/config_parse   # Order-preserving config parser
+moon run cmd/json_order     # ToJson key ordering
+```
 
-Usage: copy a snippet into your project, add `import { "aurasuisui/indexmap" }`
-to your `moon.pkg`, and run. See [`examples/README.md`](examples/README.md) for
-details.
+Source in [`cmd/`](cmd/).
 
 ## Development
 

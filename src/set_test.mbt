@@ -490,7 +490,7 @@ test "set drain empty" {
 test "set extend" {
   let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("existing") |> ignore
-  set.extend(["a", "b", "c"])
+  set.extend_from_array(["a", "b", "c"])
   inspect(set.len(), content="4")
   inspect(set.contains("existing"), content="true")
   inspect(set.contains("a"), content="true")

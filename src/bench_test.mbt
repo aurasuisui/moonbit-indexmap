@@ -271,7 +271,7 @@ test "bench extend large batch" {
     entries.push((i, i * 10))
     i = i + 1
   }
-  map.extend(entries)
+  map.extend_from_array(entries)
   inspect(map.len(), content="1000")
   inspect(map.get(0), content="Some(0)")
   inspect(map.get(999), content="Some(9990)")
