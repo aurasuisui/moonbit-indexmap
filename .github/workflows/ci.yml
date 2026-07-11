@@ -15,7 +15,7 @@ jobs:
       - name: Setup MoonBit
         uses: hustcer/setup-moonbit@v1
         with:
-          version: 0.1.20260703
+          version: latest
 
       - name: Format check
         run: moon fmt --check
