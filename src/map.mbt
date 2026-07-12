@@ -473,6 +473,10 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
             self.buckets[idx] = Some(new_entry)
           }
           None => {
+            // Guard: if callback re-inserted the same key, don't tombstone.
+            if self.contains(key) {
+              return
+            }
             self.buckets[idx] = Some({
               key: entry.key,
               value: entry.value,
@@ -918,6 +922,26 @@ pub fn[K : Hash + Eq, V] IndexMap::retain(
 }
 
 ///|
+/// Recalculate `max_probe_distance` by scanning all buckets.
+/// Called after operations that rebuild `order`/`positions` but leave buckets intact
+/// (e.g., `sort_by_key`, `sort_by`) to keep the reported value consistent.
+fn[K, V] IndexMap::recalc_max_probe(self : IndexMap[K, V]) -> Unit {
+  let mut max_d = 0
+  let mut bi = 0
+  while bi < self.buckets.length() {
+    match self.buckets[bi] {
+      Some(e) =>
+        if e.distance > max_d && e.hash != TOMBSTONE_HASH {
+          max_d = e.distance
+        }
+      None => ()
+    }
+    bi = bi + 1
+  }
+  self.max_probe_distance = max_d
+}
+
+///|
 /// Sort the map's entries by key using MoonBit's built-in sort (O(n log n)).
 pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
   self : IndexMap[K, V],
@@ -933,6 +957,7 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
     self.positions[k] = i
     i = i + 1
   }
+  self.recalc_max_probe()
 }
 
 ///|
@@ -968,6 +993,7 @@ pub fn[K : Hash + Eq, V] IndexMap::sort_by(
     self.positions[k] = i
     i = i + 1
   }
+  self.recalc_max_probe()
 }
 
 ///|

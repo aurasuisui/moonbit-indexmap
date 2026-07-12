@@ -2,6 +2,23 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [0.3.2] - 2026-07-12
+
+### Fixed
+- **BUG-001 fixed**: `get_mut` callback that re-inserts the same key and returns
+  `None` no longer causes data loss. A `contains` guard is now checked before
+  writing the tombstone — if the callback re-inserted the key, the deletion path
+  is skipped.
+- **WARN-003 fixed**: `max_probe_distance` is now recalculated after `sort_by`
+  and `sort_by_key` via new internal `recalc_max_probe()` helper.
+- **WARN-002 clarified**: README Gotcha #3 (`swap_remove_index` semantics) no
+  longer contradicts itself.
+
+### Changed
+- README Gotcha #1 (get_mut callback gotcha) updated: the data-loss caveat is
+  now qualified — the `contains` guard prevents it for same-key re-insertion,
+  though still advise using `Some(new_val)` for clarity.
+
 ## [0.3.1] - 2026-07-12
 
 ### Changed

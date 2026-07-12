@@ -39,7 +39,7 @@ while true {
 Add to `moon.mod.json`:
 
 ```json
-{ "dependencies": { "aurasuisui/indexmap": "0.3.1" } }
+{ "dependencies": { "aurasuisui/indexmap": "0.3.2" } }
 ```
 
 Or clone directly:
@@ -99,10 +99,11 @@ Known design choices and limitations — see the
 [independent test report](https://github.com/aurasuisui/indexmap-test-suite/blob/main/TEST_REPORT.md)
 for reproduction details.
 
-1. **`get_mut` callback: don't delete and re-insert the same key.** If the callback
-   calls `map.insert(same_key, ...)` and then returns `None`, the tombstone written
-   by `get_mut` clobbers the just-inserted value. Use `Some(new_val)` to update in
-   place instead.
+1. **`get_mut` callback: prefer `Some(new_val)` for in-place updates.** The callback
+   receives a mutable view into the entry; returning `None` triggers deletion.
+   In v0.3.2 a guard was added so that re-inserting the same key inside the
+   callback no longer causes data loss, but returning `Some(new_val)` is still
+   the clearer pattern for updates.
 
 2. **`Eq` and `Hash` are insertion-order-sensitive.** Two maps with identical
    key-value pairs but different insertion orders are *not* equal and produce
@@ -112,14 +113,14 @@ for reproduction details.
 3. **`swap_remove_index` is actually O(n) shift-remove.** Despite the name
    (kept for Rust indexmap API compatibility), it calls the order-preserving
    `remove` path — elements after the target are shifted one slot left. It does
-   *not* swap with the last element in O(1). If you need O(1) order-breaking
-   removal, use `swap_remove_index` (it *is* order-breaking by name, but the
-   implementation currently preserves order).
+   *not* swap with the last element in O(1). If you need actual O(1)
+   order-breaking removal, you would need a dedicated method that directly
+   swaps with the last element before popping — `swap_remove_index` does not
+   do this.
 
-4. **`sort_by` / `sort_by_key` does not refresh `max_probe()`.** Sorting rebuilds
-   `order[]` and `positions[]` but leaves the underlying hash-table buckets
-   untouched. The value returned by `max_probe()` reflects the pre-sort probe
-   distribution — it will be stale after sorting.
+4. **`sort_by` / `sort_by_key` now recalculates `max_probe()`.** Fixed in v0.3.2:
+   an internal `recalc_max_probe()` helper scans buckets after sorting to keep
+   the reported value consistent.
 
 5. **Don't mutate the map while an iterator is active.** Iterators hold a cursor
    into the order array; `insert` or `remove` during iteration causes an

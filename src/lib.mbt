@@ -32,7 +32,7 @@
 
 ///|
 /// Library version string.
-pub const VERSION : String = "0.3.1"
+pub const VERSION : String = "0.3.2"
 
 ///|
 /// Create a new, empty IndexMap.
