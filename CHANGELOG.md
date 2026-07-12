@@ -2,6 +2,44 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [0.3.2] - 2026-07-12
+
+### Fixed
+- **BUG-001**: `get_mut` callback that re-inserts the same key and then returns
+  `None` no longer loses data. A `contains(key)` guard is now checked in the `None`
+  branch before writing the tombstone — if the key was re-inserted by the callback
+  (e.g. `map.insert(same_key, new_val)` inside `f`), the tombstone and deletion
+  logic are skipped, so the just-inserted value survives. New regression test
+  `IndexMap get_mut callback re-inserts same key then None preserves value` added.
+- **WARN-003**: `max_probe_distance` is now explicitly recalculated after
+  `sort_by` and `sort_by_key` via a new internal `recalc_max_probe()` helper.
+  Sorting only rebuilds `order[]`/`positions[]` and does not move entries between
+  buckets, so the value previously happened to stay correct — it is now maintained
+  explicitly and is robust to future bucket-level changes. New test
+  `sort_by_key refreshes max_probe` added. README Gotcha #4 updated to reflect the
+  fix (marked "fixed in v0.3.2").
+
+### Docs
+- **WARN-002**: README Gotcha #3's self-contradictory last sentence clarified —
+  `swap_remove_index` is O(n) order-preserving shift-remove, not O(1)
+  order-breaking. The misleading "use `swap_remove_index` [for O(1) order-breaking
+  removal]" phrasing is gone.
+- README Gotcha #1 (`get_mut` data loss) updated to reflect BUG-001 being fixed
+  (marked "fixed in v0.3.2"). Gotchas #2 (`Eq`/`Hash` order-sensitivity) and #5
+  (fail-fast iterator invalidation) remain valid known limitations, unchanged.
+
+### Changed
+- **Workspace narrowed to the library only**: `moon.work` now lists just `.`,
+  excluding the `cmd/*` example packages. This keeps the library's CI pipeline
+  (`moon fmt --check` / `moon check` / `moon test` / `moon info && git diff --exit-code`)
+  green across the pinned toolchain without being tripped by example-package main
+  declaration syntax (`options("is-main")` vs `pkgtype(kind: "executable")`, which is
+  toolchain-version-sensitive). The example sources remain in `cmd/` for reference;
+  see the README Examples section for how to run them with a separately-configured
+  toolchain. `cmd/*/moon.pkg` are unchanged from v0.3.1 (`options("is-main": true)`).
+- Version bump 0.3.1 → 0.3.2 (patch). No API changes to the library. `cmd/*` example
+  `moon.mod` deps and the README install snippet updated to `@0.3.2`.
+
 ## [0.3.1] - 2026-07-12
 
 ### Changed

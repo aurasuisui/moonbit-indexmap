@@ -473,6 +473,13 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
             self.buckets[idx] = Some(new_entry)
           }
           None => {
+            // BUG-001 fix: if the callback re-inserted the same key (e.g.
+            // `map.insert(key, new_val)` inside `f`), the new entry is already
+            // in the bucket. Writing a tombstone here would clobber it, so we
+            // skip the entire deletion path and return untouched.
+            if self.contains(key) {
+              return
+            }
             self.buckets[idx] = Some({
               key: entry.key,
               value: entry.value,
@@ -918,6 +925,28 @@ pub fn[K : Hash + Eq, V] IndexMap::retain(
 }
 
 ///|
+/// Recalculate `max_probe_distance` from the current bucket layout.
+/// Used after operations that rebuild `order`/`positions` in place (e.g.
+/// `sort_by_key` / `sort_by`) to make the invariant "this field always
+/// reflects the live buckets" explicit rather than relying on the fact
+/// that such operations do not move entries between buckets.
+fn[K, V] IndexMap::recalc_max_probe(self : IndexMap[K, V]) -> Unit {
+  let mut max_d = 0
+  let mut bi = 0
+  while bi < self.buckets.length() {
+    match self.buckets[bi] {
+      Some(e) =>
+        if e.distance > max_d && e.hash != TOMBSTONE_HASH {
+          max_d = e.distance
+        }
+      None => ()
+    }
+    bi = bi + 1
+  }
+  self.max_probe_distance = max_d
+}
+
+///|
 /// Sort the map's entries by key using MoonBit's built-in sort (O(n log n)).
 pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
   self : IndexMap[K, V],
@@ -933,6 +962,7 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
     self.positions[k] = i
     i = i + 1
   }
+  self.recalc_max_probe()
 }
 
 ///|
@@ -968,6 +998,7 @@ pub fn[K : Hash + Eq, V] IndexMap::sort_by(
     self.positions[k] = i
     i = i + 1
   }
+  self.recalc_max_probe()
 }
 
 ///|

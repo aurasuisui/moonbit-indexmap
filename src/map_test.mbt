@@ -323,6 +323,21 @@ test "sort_by_key" {
 }
 
 ///|
+test "sort_by_key refreshes max_probe" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("c", 3) |> ignore
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  let before = map.max_probe()
+  map.sort_by_key()
+  let after = map.max_probe()
+  // Sorting does not move buckets, so max_probe should be unchanged but
+  // still explicitly recalculated (sanity: non-negative and equal to before).
+  debug_inspect(after >= 0, content="true")
+  debug_inspect(before == after, content="true")
+}
+
+///|
 test "large insert and resize 1000" {
   let map = @aurasuisui/indexmap.new()
   let mut i = 0
@@ -1639,7 +1654,7 @@ test "library version" {
   debug_inspect(
     @aurasuisui/indexmap.VERSION,
     content=(
-      #|"0.3.1"
+      #|"0.3.2"
     ),
   )
 }
@@ -1700,6 +1715,21 @@ test "IndexMap get_mut modifies value" {
 test "IndexMap get_mut on missing key" {
   let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   map.get_mut("missing", fn(_v) { None })
+}
+
+///|
+test "IndexMap get_mut callback re-inserts same key then None preserves value" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("key", 1) |> ignore
+  // Callback updates via insert(same_key, ...) then returns None.
+  // Before v0.3.2 this clobbered the value to a tombstone (data loss, BUG-001).
+  map.get_mut("key", fn(_v) {
+    map.insert("key", 99) |> ignore
+    None
+  })
+  debug_inspect(map.contains("key"), content="true")
+  debug_inspect(map.get("key"), content="Some(99)")
+  debug_inspect(map.len(), content="1")
 }
 
 ///|

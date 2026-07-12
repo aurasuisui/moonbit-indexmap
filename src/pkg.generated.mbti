@@ -12,7 +12,7 @@ pub const LOAD_FACTOR_DENOMINATOR : Int = 4
 
 pub const LOAD_FACTOR_NUMERATOR : Int = 3
 
-pub const VERSION : String = "0.3.1"
+pub const VERSION : String = "0.3.2"
 
 pub fn[K : Hash + Eq, V] new() -> IndexMap[K, V]
 
