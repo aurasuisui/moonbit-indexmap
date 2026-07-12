@@ -1,5 +1,3 @@
 import {
   "aurasuisui/indexmap",
 }
-
-pkgtype(kind: "executable")

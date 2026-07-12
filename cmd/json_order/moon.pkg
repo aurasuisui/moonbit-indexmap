@@ -2,5 +2,3 @@ import {
   "aurasuisui/indexmap",
   "moonbitlang/core/debug",
 }
-
-pkgtype(kind: "executable")
