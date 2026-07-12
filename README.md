@@ -39,7 +39,7 @@ while true {
 Add to `moon.mod.json`:
 
 ```json
-{ "dependencies": { "aurasuisui/indexmap": "0.3.0" } }
+{ "dependencies": { "aurasuisui/indexmap": "0.3.1" } }
 ```
 
 Or clone directly:

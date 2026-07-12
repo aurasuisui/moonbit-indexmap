@@ -46,7 +46,7 @@ fn main {
   let iter = config.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => println("{k} = {v}")
+      Some((k, v)) => println(k + " = " + v)
       None => break
     }
   }
@@ -60,13 +60,13 @@ fn main {
 
   // Access a specific key
   match config.get("server.port") {
-    Some(port) => println("Server will listen on port {port}")
+    Some(port) => println("Server will listen on port " + port)
     None => println("port not configured")
   }
 
   // Use entry API for conditional update
   match config.entry("server.host") {
-    @indexmap.Occupied(entry) => println("Host configured: {entry.get()}")
+    @indexmap.Occupied(entry) => println("Host configured: " + entry.get())
     @indexmap.Vacant(_) => println("No host configured, using default")
   }
 }

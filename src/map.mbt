@@ -1095,7 +1095,7 @@ pub impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with fn t
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => obj[k.to_json().to_string()] = v.to_json()
+      Some((k, v)) => obj[@debug.to_string(k.to_json())] = v.to_json()
       None => break
     }
   }

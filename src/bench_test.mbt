@@ -9,12 +9,12 @@ test "bench insert 1000 int keys" {
     map.insert(i, i * 2) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="1000")
-  inspect(map.capacity() >= 1024, content="true")
+  debug_inspect(map.len(), content="1000")
+  debug_inspect(map.capacity() >= 1024, content="true")
   // Verify a sample to ensure correctness
-  inspect(map.get(0), content="Some(0)")
-  inspect(map.get(500), content="Some(1000)")
-  inspect(map.get(999), content="Some(1998)")
+  debug_inspect(map.get(0), content="Some(0)")
+  debug_inspect(map.get(500), content="Some(1000)")
+  debug_inspect(map.get(999), content="Some(1998)")
 }
 
 ///|
@@ -25,9 +25,9 @@ test "bench insert 5000 int keys" {
     map.insert(i, i * 3) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="5000")
-  inspect(map.get(0), content="Some(0)")
-  inspect(map.get(4999), content="Some(14997)")
+  debug_inspect(map.len(), content="5000")
+  debug_inspect(map.get(0), content="Some(0)")
+  debug_inspect(map.get(4999), content="Some(14997)")
 }
 
 ///|
@@ -38,7 +38,7 @@ test "bench insert 10000 int keys" {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="10000")
+  debug_inspect(map.len(), content="10000")
   let mut j = 0
   while j < 10000 {
     match map.get(j) {
@@ -66,7 +66,7 @@ test "bench lookup 5000 keys" {
     }
     j = j + 1
   }
-  inspect(found, content="5000")
+  debug_inspect(found, content="5000")
 }
 
 ///|
@@ -85,7 +85,7 @@ test "bench lookup missing keys" {
     }
     j = j + 1
   }
-  inspect(miss, content="1000")
+  debug_inspect(miss, content="1000")
 }
 
 ///|
@@ -104,7 +104,7 @@ test "bench iteration 5000 elements" {
       None => break
     }
   }
-  inspect(count, content="5000")
+  debug_inspect(count, content="5000")
 }
 
 ///|
@@ -123,7 +123,7 @@ test "bench keys iteration 5000" {
       None => break
     }
   }
-  inspect(kcount, content="5000")
+  debug_inspect(kcount, content="5000")
 }
 
 ///|
@@ -142,7 +142,7 @@ test "bench values iteration 5000" {
       None => break
     }
   }
-  inspect(vcount, content="5000")
+  debug_inspect(vcount, content="5000")
 }
 
 ///|
@@ -158,9 +158,9 @@ test "bench delete 2000 of 3000" {
     map.remove(j) |> ignore
     j = j + 1
   }
-  inspect(map.len(), content="1000")
-  inspect(map.contains(2999), content="true")
-  inspect(map.contains(0), content="false")
+  debug_inspect(map.len(), content="1000")
+  debug_inspect(map.contains(2999), content="true")
+  debug_inspect(map.contains(0), content="false")
 }
 
 ///|
@@ -176,7 +176,7 @@ test "bench delete all 1000 one by one" {
     map.remove(j) |> ignore
     j = j + 1
   }
-  inspect(map.is_empty(), content="true")
+  debug_inspect(map.is_empty(), content="true")
 }
 
 ///|
@@ -197,7 +197,7 @@ test "bench mixed insert and delete" {
     map.insert(k * 2 + 1000, k) |> ignore
     k = k + 1
   }
-  inspect(map.len(), content="500")
+  debug_inspect(map.len(), content="500")
   // Verify remaining odd keys
   let mut l = 0
   let mut odds = 0
@@ -207,7 +207,7 @@ test "bench mixed insert and delete" {
     }
     l = l + 1
   }
-  inspect(odds, content="250")
+  debug_inspect(odds, content="250")
 }
 
 ///|
@@ -219,10 +219,10 @@ test "bench retain large map" {
     i = i + 1
   }
   map.retain(fn(_k, v) { v % 2 == 0 })
-  inspect(map.len(), content="1000")
-  inspect(map.contains(0), content="true")
-  inspect(map.contains(1), content="false")
-  inspect(map.contains(1998), content="true")
+  debug_inspect(map.len(), content="1000")
+  debug_inspect(map.contains(0), content="true")
+  debug_inspect(map.contains(1), content="false")
+  debug_inspect(map.contains(1998), content="true")
 }
 
 ///|
@@ -235,9 +235,9 @@ test "bench sort_by_key large map" {
   }
   map.sort_by_key()
   let entries = map.iter().collect()
-  inspect(entries[0], content="(0, 0)")
-  inspect(entries[500], content="(500, 1000)")
-  inspect(entries[999], content="(999, 1998)")
+  debug_inspect(entries[0], content="(0, 0)")
+  debug_inspect(entries[500], content="(500, 1000)")
+  debug_inspect(entries[999], content="(999, 1998)")
 }
 
 ///|
@@ -245,8 +245,8 @@ test "bench different initial capacities small" {
   let map = @aurasuisui/indexmap.with_capacity(4)
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
-  inspect(map.len(), content="2")
-  inspect(map.get("a"), content="Some(1)")
+  debug_inspect(map.len(), content="2")
+  debug_inspect(map.get("a"), content="Some(1)")
 }
 
 ///|
@@ -257,9 +257,9 @@ test "bench different initial capacities large" {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="1000")
+  debug_inspect(map.len(), content="1000")
   // Large initial capacity should avoid resize
-  inspect(map.capacity(), content="16384")
+  debug_inspect(map.capacity(), content="16384")
 }
 
 ///|
@@ -272,9 +272,9 @@ test "bench extend large batch" {
     i = i + 1
   }
   map.extend_from_array(entries)
-  inspect(map.len(), content="1000")
-  inspect(map.get(0), content="Some(0)")
-  inspect(map.get(999), content="Some(9990)")
+  debug_inspect(map.len(), content="1000")
+  debug_inspect(map.get(0), content="Some(0)")
+  debug_inspect(map.get(999), content="Some(9990)")
 }
 
 ///|
@@ -286,8 +286,8 @@ test "bench drain large map" {
     i = i + 1
   }
   let drained = map.drain()
-  inspect(drained.length(), content="1000")
-  inspect(map.is_empty(), content="true")
+  debug_inspect(drained.length(), content="1000")
+  debug_inspect(map.is_empty(), content="true")
 }
 
 ///|
@@ -300,11 +300,11 @@ test "bench clear and reuse" {
       map.insert(i, i * round) |> ignore
       i = i + 1
     }
-    inspect(map.len(), content="100")
+    debug_inspect(map.len(), content="100")
     map.clear()
     round = round + 1
   }
-  inspect(map.is_empty(), content="true")
+  debug_inspect(map.is_empty(), content="true")
 }
 
 ///|
@@ -315,9 +315,9 @@ test "bench string keys 2000" {
     map.insert(i.to_string(), i) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="2000")
-  inspect(map.get("0"), content="Some(0)")
-  inspect(map.get("1999"), content="Some(1999)")
+  debug_inspect(map.len(), content="2000")
+  debug_inspect(map.get("0"), content="Some(0)")
+  debug_inspect(map.get("1999"), content="Some(1999)")
 }
 
 ///|
@@ -328,7 +328,7 @@ test "bench IndexSet large" {
     set.insert(i) |> ignore
     i = i + 1
   }
-  inspect(set.len(), content="5000")
+  debug_inspect(set.len(), content="5000")
   let mut j = 0
   while j < 5000 {
     if !set.contains(j) {
@@ -351,7 +351,7 @@ test "bench IndexSet remove all" {
     set.remove(j) |> ignore
     j = j + 1
   }
-  inspect(set.is_empty(), content="true")
+  debug_inspect(set.is_empty(), content="true")
 }
 
 ///|
@@ -365,7 +365,7 @@ test "bench for_each large" {
   let mut sum = 0
   map.for_each(fn(_k, v) { sum = sum + v })
   // Sum of 0..2999 * 2 = (2999 * 3000) = 8,997,000
-  inspect(sum, content="8997000")
+  debug_inspect(sum, content="8997000")
 }
 
 ///|
@@ -381,7 +381,7 @@ test "bench swap_remove many" {
     map.swap_remove_index(0) |> ignore
     j = j + 1
   }
-  inspect(map.len(), content="400")
+  debug_inspect(map.len(), content="400")
 }
 
 ///|
@@ -389,13 +389,13 @@ test "bench reserve then fill" {
   let map = @aurasuisui/indexmap.new()
   map.reserve(2000)
   let cap = map.capacity()
-  inspect(cap >= 2000, content="true")
+  debug_inspect(cap >= 2000, content="true")
   let mut i = 0
   while i < 2000 {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="2000")
+  debug_inspect(map.len(), content="2000")
 }
 
 ///|
@@ -407,8 +407,8 @@ test "bench max_probe after many inserts" {
     i = i + 1
   }
   let probe = map.max_probe()
-  inspect(probe >= 0, content="true")
-  inspect(probe < 20, content="true")
+  debug_inspect(probe >= 0, content="true")
+  debug_inspect(probe < 20, content="true")
 }
 
 ///|
@@ -420,8 +420,8 @@ test "bench load_factor after fill" {
     i = i + 1
   }
   let lf = map.load_factor()
-  inspect(lf > 0.0, content="true")
-  inspect(lf < 1.0, content="true")
+  debug_inspect(lf > 0.0, content="true")
+  debug_inspect(lf < 1.0, content="true")
 }
 
 ///|
@@ -434,15 +434,15 @@ test "bench first and last on large map" {
   }
   match map.first() {
     Some((k, v)) => {
-      inspect(k, content="0")
-      inspect(v, content="0")
+      debug_inspect(k, content="0")
+      debug_inspect(v, content="0")
     }
     None => @test.fail("expected first")
   }
   match map.last() {
     Some((k, v)) => {
-      inspect(k, content="999")
-      inspect(v, content="9990")
+      debug_inspect(k, content="999")
+      debug_inspect(v, content="9990")
     }
     None => @test.fail("expected last")
   }
@@ -456,9 +456,9 @@ test "bench get_index_of on large map" {
     map.insert(i, i) |> ignore
     i = i + 1
   }
-  inspect(map.get_index_of(0), content="Some(0)")
-  inspect(map.get_index_of(500), content="Some(500)")
-  inspect(map.get_index_of(999), content="Some(999)")
+  debug_inspect(map.get_index_of(0), content="Some(0)")
+  debug_inspect(map.get_index_of(500), content="Some(500)")
+  debug_inspect(map.get_index_of(999), content="Some(999)")
 }
 
 ///|
@@ -470,7 +470,7 @@ test "bench iter collect large map matches len" {
     i = i + 1
   }
   let collected = map.iter().collect()
-  inspect(collected.length(), content="2000")
+  debug_inspect(collected.length(), content="2000")
 }
 
 ///|
@@ -481,8 +481,8 @@ test "bench get_full on large map" {
     map.insert(i, i * 5) |> ignore
     i = i + 1
   }
-  inspect(map.get_full(0), content="Some((0, 0))")
-  inspect(map.get_full(999), content="Some((999, 4995))")
+  debug_inspect(map.get_full(0), content="Some((0, 0))")
+  debug_inspect(map.get_full(999), content="Some((999, 4995))")
 }
 
 // ---------------------------------------------------------------------------
@@ -499,8 +499,8 @@ test "cmp: insert 5000 keys IndexMap vs Map" {
     bmap[i] = i * 2
     i = i + 1
   }
-  inspect(imap.len(), content="5000")
-  inspect(bmap.length(), content="5000")
+  debug_inspect(imap.len(), content="5000")
+  debug_inspect(bmap.length(), content="5000")
 }
 
 ///|
@@ -527,8 +527,8 @@ test "cmp: lookup 2000 keys IndexMap vs Map" {
     }
     j = j + 1
   }
-  inspect(found_imap, content="2000")
-  inspect(found_bmap, content="2000")
+  debug_inspect(found_imap, content="2000")
+  debug_inspect(found_bmap, content="2000")
 }
 
 ///|
@@ -547,8 +547,8 @@ test "cmp: remove 1000 keys IndexMap vs Map" {
     bmap.remove(j) |> ignore
     j = j + 1
   }
-  inspect(imap.len(), content="1000")
-  inspect(bmap.length(), content="1000")
+  debug_inspect(imap.len(), content="1000")
+  debug_inspect(bmap.length(), content="1000")
 }
 
 ///|
@@ -559,9 +559,24 @@ test "cmp: iteration order IndexMap preserved, Map undefined" {
   imap.insert("b", 2) |> ignore
   // IndexMap: order is c, a, b (insertion order)
   let imap_entries = imap.iter().collect()
-  inspect(imap_entries[0].0, content="c")
-  inspect(imap_entries[1].0, content="a")
-  inspect(imap_entries[2].0, content="b")
+  debug_inspect(
+    imap_entries[0].0,
+    content=(
+      #|"c"
+    ),
+  )
+  debug_inspect(
+    imap_entries[1].0,
+    content=(
+      #|"a"
+    ),
+  )
+  debug_inspect(
+    imap_entries[2].0,
+    content=(
+      #|"b"
+    ),
+  )
   // Built-in Map makes no guarantee about iteration order
 }
 
@@ -572,9 +587,24 @@ test "cmp: IndexMap provides index access, Map does not" {
   imap.insert("second", 2) |> ignore
   imap.insert("third", 3) |> ignore
   // IndexMap: access by position
-  inspect(imap.get_index(0), content="Some((first, 1))")
-  inspect(imap.get_index(1), content="Some((second, 2))")
-  inspect(imap.get_index(2), content="Some((third, 3))")
+  debug_inspect(
+    imap.get_index(0),
+    content=(
+      #|Some(("first", 1))
+    ),
+  )
+  debug_inspect(
+    imap.get_index(1),
+    content=(
+      #|Some(("second", 2))
+    ),
+  )
+  debug_inspect(
+    imap.get_index(2),
+    content=(
+      #|Some(("third", 3))
+    ),
+  )
   // Built-in Map: no index-based access
 }
 
@@ -587,7 +617,7 @@ test "cmp: 10000 insert-delete mixed workload" {
     imap.insert(i, i * 10) |> ignore
     i = i + 1
   }
-  inspect(imap.len(), content="10000")
+  debug_inspect(imap.len(), content="10000")
   // Delete even numbers
   let mut j = 0
   while j < 10000 {
@@ -596,11 +626,11 @@ test "cmp: 10000 insert-delete mixed workload" {
     }
     j = j + 1
   }
-  inspect(imap.len(), content="5000")
+  debug_inspect(imap.len(), content="5000")
   // Verify remaining odd keys exist
   let mut k = 1
   while k < 10000 {
-    inspect(imap.contains(k), content="true")
+    debug_inspect(imap.contains(k), content="true")
     k = k + 2
   }
 }

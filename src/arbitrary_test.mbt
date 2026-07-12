@@ -12,7 +12,7 @@ test "qc: generated IndexMap length matches iteration count" {
   while i < maps.length() {
     let map = maps[i]
     let count = map.iter().collect().length()
-    inspect(count, content="\{map.len()}")
+    debug_inspect(count, content="\{map.len()}")
     i = i + 1
   }
 }
@@ -27,7 +27,7 @@ test "qc: generated IndexSet has no duplicates" {
     let iter = set.iter()
     while true {
       match iter.next() {
-        Some(k) => inspect(set.contains(k), content="true")
+        Some(k) => debug_inspect(set.contains(k), content="true")
         None => break
       }
     }
@@ -48,7 +48,7 @@ test "qc: insert then get roundtrip" {
     while j < entries.length() {
       let (k, v) = entries[j]
       match map.get(k) {
-        Some(got) => inspect(got, content="\{v}")
+        Some(got) => debug_inspect(got, content="\{v}")
         None => @test.fail("get failed for key that should exist")
       }
       j = j + 1
@@ -72,7 +72,7 @@ test "qc: remove all then is empty" {
       map.remove(k) |> ignore
       j = j + 1
     }
-    inspect(map.is_empty(), content="true")
+    debug_inspect(map.is_empty(), content="true")
     i = i + 1
   }
 }
@@ -86,13 +86,18 @@ test "qc: entry API vacant then occupied roundtrip" {
     match map.entry(test_key) {
       @aurasuisui/indexmap.Vacant(entry) => {
         entry.insert("generated") |> ignore
-        inspect(map.contains(test_key), content="true")
+        debug_inspect(map.contains(test_key), content="true")
       }
       @aurasuisui/indexmap.Occupied(_) => @test.fail("expected Vacant")
     }
     match map.entry(test_key) {
       @aurasuisui/indexmap.Occupied(entry) =>
-        inspect(entry.get(), content="generated")
+        debug_inspect(
+          entry.get(),
+          content=(
+            #|"generated"
+          ),
+        )
       @aurasuisui/indexmap.Vacant(_) =>
         @test.fail("expected Occupied after insert")
     }
@@ -111,10 +116,10 @@ test "qc: iteration preserves insertion order after generation" {
     let first_pass = map.iter().collect()
     // Second pass: should yield same order
     let second_pass = map.iter().collect()
-    inspect(first_pass.length(), content="\{second_pass.length()}")
+    debug_inspect(first_pass.length(), content="\{second_pass.length()}")
     let mut j = 0
     while j < first_pass.length() {
-      inspect(first_pass[j], content=second_pass[j].to_string())
+      debug_inspect(first_pass[j], content=@debug.to_string(second_pass[j]))
       j = j + 1
     }
     i = i + 1
@@ -131,7 +136,7 @@ test "qc: IndexSet retains order after generation" {
     let second = set.iter().collect()
     let mut j = 0
     while j < first.length() {
-      inspect(first[j], content="\{second[j]}")
+      debug_inspect(first[j], content="\{second[j]}")
       j = j + 1
     }
     i = i + 1
@@ -152,7 +157,7 @@ test "qc: generated map positions are consistent" {
       match iter.next() {
         Some((k, _)) => {
           match map.get_index_of(k) {
-            Some(pos) => inspect(pos, content="\{idx}")
+            Some(pos) => debug_inspect(pos, content="\{idx}")
             None =>
               @test.fail("get_index_of should return position for existing key")
           }
@@ -174,12 +179,12 @@ test "qc: copy preserves all data" {
   while i < maps.length() {
     let map = maps[i]
     let copy = map.copy()
-    inspect(copy.len(), content="\{map.len()}")
+    debug_inspect(copy.len(), content="\{map.len()}")
     let orig_entries = map.iter().collect()
     let copy_entries = copy.iter().collect()
     let mut j = 0
     while j < orig_entries.length() {
-      inspect(copy_entries[j], content=orig_entries[j].to_string())
+      debug_inspect(copy_entries[j], content=@debug.to_string(orig_entries[j]))
       j = j + 1
     }
     i = i + 1
@@ -194,7 +199,7 @@ test "qc: IndexSet subset implies superset" {
     let a = sets[i]
     let b = sets[i + 1]
     if a.is_subset(b) {
-      inspect(b.is_superset(a), content="true")
+      debug_inspect(b.is_superset(a), content="true")
     }
     i = i + 2
   }
@@ -210,7 +215,7 @@ test "qc: to_json roundtrip preserves count" {
     let map = maps[i]
     let json = map.to_json()
     // JSON should be a valid object
-    inspect(json is Object(_), content="true")
+    debug_inspect(json is Object(_), content="true")
     i = i + 1
   }
 }

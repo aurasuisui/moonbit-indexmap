@@ -1,5 +1,6 @@
 import {
   "aurasuisui/indexmap",
+  "moonbitlang/core/debug",
 }
 
 options(

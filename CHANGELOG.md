@@ -2,6 +2,36 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [0.3.1] - 2026-07-12
+
+### Changed
+- **Migrated all `inspect` calls to `debug_inspect`** across tests, examples, and source.
+  `inspect` was deprecated by `moonbitlang/core` in favor of `debug_inspect`, which binds
+  to the `Debug` trait instead of `Show`. All `content=` snapshots were refreshed
+  (via `moon test -u`) to the `Debug` rendering format.
+- **`Show::to_string` → `@debug.to_string`** in `src/map.mbt` (ToJson impl) and
+  `cmd/json_order` example. Replaces the deprecated `Show::to_string` on `Json` with
+  the `Debug`-based `@debug.to_string`. `src/moon.pkg` and `cmd/json_order/moon.pkg`
+  now import `moonbitlang/core/debug`.
+- `cmd/config_parse` and `cmd/json_order` examples: interpolation in `println` replaced
+  with string concatenation to silence `[0002]` unused-value warnings (MoonBit's
+  interpolation elides the variable-use detection).
+- `cmd/json_order`: `Map::new()` → `Map([])` (deprecated constructor).
+
+### Fixed
+- Two loop-based tests (`sequential insert and iterate`, `property: insert order
+  equals iteration order`) rewritten to use `@test.assert_eq` instead of
+  `debug_inspect` inside hot loops — expect-test snapshots are not stable when a
+  single `debug_inspect` runs N times with N different values, which previously
+  led to file corruption on `moon test -u`.
+- `property: first equals get_index 0`: explicit `ignore(gk)` for an unused binding.
+
+### Result
+- `moon check`: **0 warnings, 0 errors** (was 110 warnings)
+- `moon check --deny-warn` passes (exit 0)
+- `moon test`: 253/253 pass
+- No breaking API changes (patch release)
+
 ## [0.3.0] - 2026-07-07
 
 ### Breaking

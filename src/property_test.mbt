@@ -9,7 +9,7 @@ test "property: insert N keys gives len N" {
     map.insert(i, i * 10) |> ignore
     i = i + 1
   }
-  inspect(map.len(), content="50")
+  debug_inspect(map.len(), content="50")
 }
 
 ///|
@@ -17,7 +17,7 @@ test "property: insert twice same key preserves len" {
   let map = @aurasuisui/indexmap.new()
   map.insert("key", 1) |> ignore
   map.insert("key", 2) |> ignore
-  inspect(map.len(), content="1")
+  debug_inspect(map.len(), content="1")
 }
 
 ///|
@@ -31,7 +31,7 @@ test "property: insert get roundtrip" {
   let mut j = 0
   while j < 100 {
     match map.get(j) {
-      Some(v) => inspect(v, content="\{j * 7}")
+      Some(v) => debug_inspect(v, content="\{j * 7}")
       None => @test.fail("missing key in roundtrip")
     }
     j = j + 1
@@ -47,7 +47,7 @@ test "property: remove reduces len by 1" {
     i = i + 1
   }
   map.remove(50) |> ignore
-  inspect(map.len(), content="99")
+  debug_inspect(map.len(), content="99")
 }
 
 ///|
@@ -59,7 +59,7 @@ test "property: removed key not found" {
     i = i + 1
   }
   map.remove(25) |> ignore
-  inspect(map.contains(25), content="false")
+  debug_inspect(map.contains(25), content="false")
 }
 
 ///|
@@ -78,7 +78,7 @@ test "property: iteration count equals len" {
       None => break
     }
   }
-  inspect(count, content="75")
+  debug_inspect(count, content="75")
 }
 
 ///|
@@ -91,7 +91,7 @@ test "property: deleted key not in iteration" {
   let iter = map.iter()
   while true {
     match iter.next() {
-      Some((k, _)) => inspect(k == "b", content="false")
+      Some((k, _)) => debug_inspect(k == "b", content="false")
       None => break
     }
   }
@@ -106,16 +106,16 @@ test "property: clear makes len zero" {
     i = i + 1
   }
   map.clear()
-  inspect(map.len(), content="0")
-  inspect(map.is_empty(), content="true")
+  debug_inspect(map.len(), content="0")
+  debug_inspect(map.is_empty(), content="true")
 }
 
 ///|
 test "property: contains matches get" {
   let map = @aurasuisui/indexmap.new()
   map.insert("exists", 42) |> ignore
-  inspect(map.contains("exists"), content="true")
-  inspect(map.contains("missing"), content="false")
+  debug_inspect(map.contains("exists"), content="true")
+  debug_inspect(map.contains("missing"), content="false")
   match map.get("exists") {
     Some(_) => ()
     None => @test.fail("contains true but get returned None")
@@ -132,7 +132,7 @@ test "property: extend N entries yields len N" {
     i = i + 1
   }
   map.extend_from_array(entries)
-  inspect(map.len(), content="30")
+  debug_inspect(map.len(), content="30")
 }
 
 ///|
@@ -144,8 +144,8 @@ test "property: drain empties map" {
     i = i + 1
   }
   let drained = map.drain()
-  inspect(drained.length(), content="50")
-  inspect(map.is_empty(), content="true")
+  debug_inspect(drained.length(), content="50")
+  debug_inspect(map.is_empty(), content="true")
 }
 
 ///|
@@ -157,7 +157,7 @@ test "property: retain all keeps all" {
     i = i + 1
   }
   map.retain(fn(_k, _v) { true })
-  inspect(map.len(), content="100")
+  debug_inspect(map.len(), content="100")
 }
 
 ///|
@@ -169,7 +169,7 @@ test "property: retain none removes all" {
     i = i + 1
   }
   map.retain(fn(_k, _v) { false })
-  inspect(map.is_empty(), content="true")
+  debug_inspect(map.is_empty(), content="true")
 }
 
 ///|
@@ -186,7 +186,7 @@ test "property: keys iterator count equals len" {
       None => break
     }
   }
-  inspect(count, content="3")
+  debug_inspect(count, content="3")
 }
 
 ///|
@@ -203,7 +203,7 @@ test "property: values iterator count equals len" {
       None => break
     }
   }
-  inspect(count, content="3")
+  debug_inspect(count, content="3")
 }
 
 ///|
@@ -215,10 +215,10 @@ test "property: insert preserves existing entries" {
     i = i + 1
   }
   map.insert(25, 999) |> ignore
-  inspect(map.len(), content="50")
-  inspect(map.get(25), content="Some(999)")
-  inspect(map.get(0), content="Some(0)")
-  inspect(map.get(49), content="Some(490)")
+  debug_inspect(map.len(), content="50")
+  debug_inspect(map.get(25), content="Some(999)")
+  debug_inspect(map.get(0), content="Some(0)")
+  debug_inspect(map.get(49), content="Some(490)")
 }
 
 ///|
@@ -232,7 +232,7 @@ test "property: shrink_to_fit preserves data" {
   map.shrink_to_fit()
   let mut j = 0
   while j < 20 {
-    inspect(map.contains(j), content="true")
+    debug_inspect(map.contains(j), content="true")
     j = j + 1
   }
 }
@@ -251,14 +251,18 @@ test "property: insert order equals iteration order" {
   while true {
     match iter.next() {
       Some((k, v)) => {
-        inspect(k, content=keys[j])
-        inspect(v, content="\{j}")
+        if k != keys[j] {
+          @test.fail("key mismatch: expected " + keys[j] + " got " + k)
+        }
+        if v != j {
+          @test.fail("value mismatch at " + j.to_string())
+        }
         j = j + 1
       }
       None => break
     }
   }
-  inspect(j, content="5")
+  debug_inspect(j, content="5")
 }
 
 ///|
@@ -270,7 +274,7 @@ test "property: swap_remove maintains len minus 1" {
     i = i + 1
   }
   map.swap_remove_index(50) |> ignore
-  inspect(map.len(), content="99")
+  debug_inspect(map.len(), content="99")
 }
 
 ///|
@@ -280,8 +284,8 @@ test "property: overwrite does not change len" {
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
   let old = map.insert("b", 20)
-  inspect(old, content="Some(2)")
-  inspect(map.len(), content="3")
+  debug_inspect(old, content="Some(2)")
+  debug_inspect(map.len(), content="3")
 }
 
 ///|
@@ -290,7 +294,7 @@ test "property: pop on non-empty reduces len" {
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.pop() |> ignore
-  inspect(map.len(), content="1")
+  debug_inspect(map.len(), content="1")
 }
 
 ///|
@@ -299,7 +303,12 @@ test "property: pop returns most recent" {
   map.insert("first", 1) |> ignore
   map.insert("second", 2) |> ignore
   let popped = map.pop()
-  inspect(popped, content="Some((second, 2))")
+  debug_inspect(
+    popped,
+    content=(
+      #|Some(("second", 2))
+    ),
+  )
 }
 
 ///|
@@ -307,19 +316,34 @@ test "property: from_array preserves input order" {
   let entries = [("c", 3), ("b", 2), ("a", 1)]
   let map = @aurasuisui/indexmap.IndexMap::from_array(entries)
   let collected = map.iter().collect()
-  inspect(collected[0], content="(c, 3)")
-  inspect(collected[1], content="(b, 2)")
-  inspect(collected[2], content="(a, 1)")
+  debug_inspect(
+    collected[0],
+    content=(
+      #|("c", 3)
+    ),
+  )
+  debug_inspect(
+    collected[1],
+    content=(
+      #|("b", 2)
+    ),
+  )
+  debug_inspect(
+    collected[2],
+    content=(
+      #|("a", 1)
+    ),
+  )
 }
 
 ///|
 test "property: empty map has capacity 16" {
   let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
-  inspect(map.capacity(), content="16")
-  inspect(map.len(), content="0")
+  debug_inspect(map.capacity(), content="16")
+  debug_inspect(map.len(), content="0")
   let lf = map.load_factor()
-  inspect(lf >= 0.0, content="true")
-  inspect(lf < 1.0, content="true")
+  debug_inspect(lf >= 0.0, content="true")
+  debug_inspect(lf < 1.0, content="true")
 }
 
 ///|
@@ -331,8 +355,14 @@ test "property: first equals get_index 0" {
   let g = map.get_index(0)
   match (f, g) {
     (Some((fk, fv)), Some((gk, gv))) => {
-      inspect(fk, content=gk)
-      inspect(fv, content="\{gv}")
+      ignore(gk)
+      debug_inspect(
+        fk,
+        content=(
+          #|"x"
+        ),
+      )
+      debug_inspect(fv, content="\{gv}")
     }
     _ => @test.fail("first and get_index(0) should match")
   }
@@ -350,7 +380,7 @@ test "property: sort_by_key stable for sorted input" {
   let entries = map.iter().collect()
   let mut j = 0
   while j < 50 {
-    inspect(entries[j].0, content="\{j}")
+    debug_inspect(entries[j].0, content="\{j}")
     j = j + 1
   }
 }
@@ -358,8 +388,8 @@ test "property: sort_by_key stable for sorted input" {
 ///|
 test "property: IndexSet insert returns false on duplicate" {
   let set = @aurasuisui/indexmap.IndexSet::new()
-  inspect(set.insert("x"), content="true")
-  inspect(set.insert("x"), content="false")
+  debug_inspect(set.insert("x"), content="true")
+  debug_inspect(set.insert("x"), content="false")
 }
 
 ///|
@@ -370,7 +400,7 @@ test "property: IndexSet len matches unique inserts" {
   set.insert("c") |> ignore
   set.insert("a") |> ignore
   set.insert("b") |> ignore
-  inspect(set.len(), content="3")
+  debug_inspect(set.len(), content="3")
 }
 
 ///|
@@ -381,8 +411,8 @@ test "property: IndexSet disjoint is symmetric" {
   let b = @aurasuisui/indexmap.IndexSet::new()
   b.insert(3) |> ignore
   b.insert(4) |> ignore
-  inspect(a.is_disjoint(b), content="true")
-  inspect(b.is_disjoint(a), content="true")
+  debug_inspect(a.is_disjoint(b), content="true")
+  debug_inspect(b.is_disjoint(a), content="true")
 }
 
 ///|
@@ -394,8 +424,8 @@ test "property: IndexSet subset implies superset" {
   b.insert(1) |> ignore
   b.insert(2) |> ignore
   b.insert(3) |> ignore
-  inspect(a.is_subset(b), content="true")
-  inspect(b.is_superset(a), content="true")
+  debug_inspect(a.is_subset(b), content="true")
+  debug_inspect(b.is_superset(a), content="true")
 }
 
 ///|
@@ -404,13 +434,13 @@ test "property: IndexSet empty is always subset" {
   let set = @aurasuisui/indexmap.IndexSet::new()
   set.insert("x") |> ignore
   set.insert("y") |> ignore
-  inspect(empty.is_subset(set), content="true")
+  debug_inspect(empty.is_subset(set), content="true")
 }
 
 ///|
 test "property: IndexSet empty is always superset of empty" {
   let empty : @aurasuisui/indexmap.IndexSet[String] = @aurasuisui/indexmap.IndexSet::new()
-  inspect(empty.is_superset(empty), content="true")
+  debug_inspect(empty.is_superset(empty), content="true")
 }
 
 ///|
@@ -421,18 +451,36 @@ test "property: IndexSet iteration order matches insert" {
   set.insert("a") |> ignore
   let iter = set.iter()
   match iter.next() {
-    Some(k) => inspect(k, content="b")
+    Some(k) =>
+      debug_inspect(
+        k,
+        content=(
+          #|"b"
+        ),
+      )
     None => @test.fail("expected b")
   }
   match iter.next() {
-    Some(k) => inspect(k, content="c")
+    Some(k) =>
+      debug_inspect(
+        k,
+        content=(
+          #|"c"
+        ),
+      )
     None => @test.fail("expected c")
   }
   match iter.next() {
-    Some(k) => inspect(k, content="a")
+    Some(k) =>
+      debug_inspect(
+        k,
+        content=(
+          #|"a"
+        ),
+      )
     None => @test.fail("expected a")
   }
-  inspect(iter.next(), content="None")
+  debug_inspect(iter.next(), content="None")
 }
 
 ///|
@@ -445,10 +493,10 @@ test "property: reserve on filled map preserves data" {
   }
   let cap_before = map.capacity()
   map.reserve(2000)
-  inspect(map.capacity() > cap_before, content="true")
+  debug_inspect(map.capacity() > cap_before, content="true")
   let mut j = 0
   while j < 30 {
-    inspect(map.contains(j), content="true")
+    debug_inspect(map.contains(j), content="true")
     j = j + 1
   }
 }
@@ -459,13 +507,23 @@ test "property: delete and reinsert same key" {
   map.insert("key", 1) |> ignore
   map.remove("key") |> ignore
   map.insert("key", 2) |> ignore
-  inspect(map.len(), content="1")
-  inspect(map.get("key"), content="Some(2)")
+  debug_inspect(map.len(), content="1")
+  debug_inspect(map.get("key"), content="Some(2)")
   // Should be at the end now
   map.insert("other", 3) |> ignore
   let entries = map.iter().collect()
-  inspect(entries[0], content="(key, 2)")
-  inspect(entries[1], content="(other, 3)")
+  debug_inspect(
+    entries[0],
+    content=(
+      #|("key", 2)
+    ),
+  )
+  debug_inspect(
+    entries[1],
+    content=(
+      #|("other", 3)
+    ),
+  )
 }
 
 ///|
@@ -482,15 +540,15 @@ test "property: iter next reduces len by one each call" {
       None => break
     }
   }
-  inspect(count, content="3")
+  debug_inspect(count, content="3")
 }
 
 ///|
 test "property: is_empty consistent with len" {
   let map = @aurasuisui/indexmap.new()
-  inspect(map.is_empty() == (map.len() == 0), content="true")
+  debug_inspect(map.is_empty() == (map.len() == 0), content="true")
   map.insert("x", 1) |> ignore
-  inspect(map.is_empty() == (map.len() == 0), content="true")
+  debug_inspect(map.is_empty() == (map.len() == 0), content="true")
 }
 
 // ---------------------------------------------------------------------------
@@ -510,7 +568,7 @@ test "property: get_index_of matches order array position" {
   let mut j = 0
   while j < keys.length() {
     match map.get_index_of(keys[j]) {
-      Some(pos) => inspect(pos, content="\{j}")
+      Some(pos) => debug_inspect(pos, content="\{j}")
       None => @test.fail("key should have a position")
     }
     j = j + 1
@@ -531,12 +589,12 @@ test "property: remove from front preserves remaining order" {
     map.remove(j) |> ignore
     j = j + 1
   }
-  inspect(map.len(), content="5")
+  debug_inspect(map.len(), content="5")
   // Remaining should be 5,6,7,8,9 in order
   let entries = map.iter().collect()
   let mut k = 0
   while k < 5 {
-    inspect(entries[k].0, content="\{k + 5}")
+    debug_inspect(entries[k].0, content="\{k + 5}")
     k = k + 1
   }
 }
@@ -555,11 +613,11 @@ test "property: remove from back preserves front order" {
     map.remove(j) |> ignore
     j = j - 1
   }
-  inspect(map.len(), content="5")
+  debug_inspect(map.len(), content="5")
   let entries = map.iter().collect()
   let mut k = 0
   while k < 5 {
-    inspect(entries[k].0, content="\{k}")
+    debug_inspect(entries[k].0, content="\{k}")
     k = k + 1
   }
 }
@@ -575,10 +633,30 @@ test "property: remove from middle preserves edge order" {
   map.remove("c") |> ignore
   // Order should be a, b, d, e
   let entries = map.iter().collect()
-  inspect(entries[0], content="(a, 1)")
-  inspect(entries[1], content="(b, 2)")
-  inspect(entries[2], content="(d, 4)")
-  inspect(entries[3], content="(e, 5)")
+  debug_inspect(
+    entries[0],
+    content=(
+      #|("a", 1)
+    ),
+  )
+  debug_inspect(
+    entries[1],
+    content=(
+      #|("b", 2)
+    ),
+  )
+  debug_inspect(
+    entries[2],
+    content=(
+      #|("d", 4)
+    ),
+  )
+  debug_inspect(
+    entries[3],
+    content=(
+      #|("e", 5)
+    ),
+  )
 }
 
 ///|
@@ -595,8 +673,8 @@ test "property: remove all in random order leaves empty" {
     map.remove(j) |> ignore
     j = j - 1
   }
-  inspect(map.is_empty(), content="true")
-  inspect(map.len(), content="0")
+  debug_inspect(map.is_empty(), content="true")
+  debug_inspect(map.len(), content="0")
 }
 
 ///|
@@ -608,10 +686,10 @@ test "property: swap_remove then insert preserves order semantics" {
   map.insert("d", 4) |> ignore
   // swap_remove "b" (index 1)
   map.swap_remove_index(1) |> ignore
-  inspect(map.len(), content="3")
+  debug_inspect(map.len(), content="3")
   // After swap-remove, order array should be compact (no holes)
   let entries = map.iter().collect()
-  inspect(entries.length(), content="3")
+  debug_inspect(entries.length(), content="3")
 }
 
 ///|
@@ -624,9 +702,24 @@ test "property: reinsert removed key goes to end" {
   map.insert("a", 10) |> ignore
   // "a" should now be at the end
   let entries = map.iter().collect()
-  inspect(entries[0], content="(b, 2)")
-  inspect(entries[1], content="(c, 3)")
-  inspect(entries[2], content="(a, 10)")
+  debug_inspect(
+    entries[0],
+    content=(
+      #|("b", 2)
+    ),
+  )
+  debug_inspect(
+    entries[1],
+    content=(
+      #|("c", 3)
+    ),
+  )
+  debug_inspect(
+    entries[2],
+    content=(
+      #|("a", 10)
+    ),
+  )
 }
 
 ///|
@@ -635,8 +728,8 @@ test "property: get_index_of returns none for removed key" {
   map.insert("x", 1) |> ignore
   map.insert("y", 2) |> ignore
   map.remove("x") |> ignore
-  inspect(map.get_index_of("x"), content="None")
-  inspect(map.get_index_of("y"), content="Some(0)")
+  debug_inspect(map.get_index_of("x"), content="None")
+  debug_inspect(map.get_index_of("y"), content="Some(0)")
 }
 
 ///|
@@ -656,15 +749,15 @@ test "property: mixed insert remove sequence" {
     }
     j = j + 1
   }
-  inspect(map.len(), content="25")
+  debug_inspect(map.len(), content="25")
   // Re-insert some evens
   map.insert(0, 999) |> ignore
   map.insert(10, 999) |> ignore
-  inspect(map.len(), content="27")
+  debug_inspect(map.len(), content="27")
   // Verify re-inserted keys are at end
   let entries = map.iter().collect()
   let last_two = (entries[25].0, entries[26].0)
-  inspect(last_two, content="(0, 10)")
+  debug_inspect(last_two, content="(0, 10)")
 }
 
 ///|
@@ -677,12 +770,12 @@ test "property: retain with swap-remove consistency" {
   }
   // Retain multiples of 5
   map.retain(fn(_k, v) { v % 5 == 0 })
-  inspect(map.len(), content="10")
+  debug_inspect(map.len(), content="10")
   // Verify all remaining are multiples of 5
   let iter = map.iter()
   while true {
     match iter.next() {
-      Some((_, v)) => inspect(v % 5 == 0, content="true")
+      Some((_, v)) => debug_inspect(v % 5 == 0, content="true")
       None => break
     }
   }
@@ -691,7 +784,7 @@ test "property: retain with swap-remove consistency" {
   let mut prev = -1
   let mut j = 0
   while j < entries.length() {
-    inspect(entries[j].0 > prev, content="true")
+    debug_inspect(entries[j].0 > prev, content="true")
     prev = entries[j].0
     j = j + 1
   }

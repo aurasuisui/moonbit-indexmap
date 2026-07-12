@@ -18,11 +18,11 @@ fn main {
 
   let ordered_json = ordered.to_json()
   println("=== IndexMap (order preserved) ===")
-  println(ordered_json.to_string())
+  println(@debug.to_string(ordered_json))
   // Output keys in order: name, version, license, author
 
   // ---- Built-in Map does NOT preserve order ----
-  let unordered : Map[String, Json] = Map::new()
+  let unordered : Map[String, Json] = Map([])
   unordered["name"] = Json::string("MoonBit IndexMap")
   unordered["version"] = Json::string("0.2.0")
   unordered["license"] = Json::string("Apache-2.0")
@@ -30,7 +30,7 @@ fn main {
 
   let unordered_json = Json::object(unordered)
   println("=== Built-in Map (order not guaranteed) ===")
-  println(unordered_json.to_string())
+  println(@debug.to_string(unordered_json))
   // Keys may appear in any order
 
   // ---- IndexSet also preserves order in JSON ----
@@ -42,7 +42,7 @@ fn main {
 
   let tags_json = tags.to_json()
   println("=== IndexSet (order preserved) ===")
-  println(tags_json.to_string())
+  println(@debug.to_string(tags_json))
   // Output: ["hashmap", "indexmap", "ordered", "data-structure"]
 
   // ---- Nested IndexMap example ----
@@ -50,5 +50,5 @@ fn main {
   nested.insert("server", ordered_json) |> ignore
   nested.insert("tags", tags_json) |> ignore
   println("=== Nested (both layers preserve order) ===")
-  println(nested.to_json().to_string())
+  println(@debug.to_string(nested.to_json()))
 }
