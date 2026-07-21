@@ -47,3 +47,27 @@ MoonBit 内置的 `Map[K, V]` 不保证迭代顺序。在实际开发中，需�
 - 暂不实现可插拔哈希算法（如 `HashBuilder` trait），直接使用 MoonBit 内置 `Hash` trait，简化 API 并降低学习成本；
 - 迭代器采用显式 `Iter` 类型 + `next()` 方法模式，适配 MoonBit 当前的迭代风格；
 - 未实现 `Equivalent` trait（异构查找），因 MoonBit 类型系统目前不支持类似 Rust 的 Borrow 抽象。
+
+## 实现现状（截至 v0.3.2）
+
+申报书以上描述为立项范围。实际交付已大幅超出立项下限，当前版本 **v0.3.2** 的完整能力如下：
+
+**超出立项的 API**
+- `get_mut(key, f)`：通过回调获取可变值，支持原地更新 / 删除 / 插入；v0.3.2 修复了回调内「同 key 先 insert 再返回 None」导致数据丢失的 BUG-001（加入 `contains` 守卫）
+- Entry API 之外补充 `into_iter()` / `into_array()` 消费式迭代、`copy()` 浅拷贝、`drain()`、`sort_by(cmp)` / `sort_by_key()` 排序
+- 标准 trait 在立项的 `Show`/`Hash`/`Eq` 基础上新增 `Debug`、`Default`、`ToJson`（保留键序的 JSON 序列化）、QuickCheck 的 `Arbitrary`
+- `IndexSet` 同步补齐 `Eq` / `Hash` / `Debug` / `ToJson` / `Arbitrary`
+
+**测试规模**
+- 库自测 **255 个测试用例**（立项下限 40）：`map_test` 111、`set_test` 50、`property_test` 47、`bench_test` 36、`arbitrary_test` 11
+- 另有独立黑盒测试套件 [`indexmap-test-suite`](https://github.com/aurasuisui/indexmap-test-suite) 共 **485 用例**全绿，覆盖全部公开 API、10 万级压力、属性不变式与边缘陷阱，并产出 [TEST_REPORT.md](https://github.com/aurasuisui/indexmap-test-suite/blob/main/TEST_REPORT.md)
+
+**工程化**
+- CI 四件套全绿：`moon fmt --check`、`moon check`（0 警告，`--deny-warn` 通过）、`moon info && git diff --exit-code`（`pkg.generated.mbti` 同步）、`moon test`、`moon build`
+- 已发布到 mooncakes.io：`aurasuisui/indexmap@0.3.2`
+- 三个可运行示例包（`cmd/lru_cache`、`cmd/config_parse`、`cmd/json_order`）源码随仓库提供；为保持库本体在固定工具链下 CI 全绿，示例包当前从 workspace 摘除（源码保留，详见 README Examples 段落）
+
+**已知限制（已文档化，见 README Gotchas）**
+- `Eq` / `Hash` 受插入顺序影响（WARN-001，设计取舍，保留）
+- `swap_remove_index` 实为 O(n) 保序 shift-remove，名称为 Rust indexmap 兼容遗产（WARN-002，v0.3.2 文档澄清）
+- 迭代期间 mutate map 会 fail-fast 崩溃而非静默损坏（WARN-004，保留）

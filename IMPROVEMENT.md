@@ -1,8 +1,11 @@
 # Improvement Plan
 
 > **Status:** This was the sprint checklist for the competition acceptance review
-> (2026-07-04). All P0–P3 items listed below are complete. For active work and the
-> current roadmap, see [CONTRIBUTING.md](CONTRIBUTING.md) and the repository issues.
+> (2026-07-04). All P0–P3 items listed below are complete. The project has since
+> progressed through v0.3.1 (warning cleanup, `inspect`→`debug_inspect` migration,
+> independent test suite verification) and **v0.3.2** (BUG-001 / WARN-002 / WARN-003
+> fixes from the test-suite Recommendations). For the current roadmap and full
+> history, see [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Based on project evaluation against the MoonBit Open Source Ecosystem Competition criteria, this document tracks actionable improvements ordered by priority.
 

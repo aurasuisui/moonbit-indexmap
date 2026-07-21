@@ -36,7 +36,7 @@ while true {
 
 ## Installation
 
-Add to `moon.mod.json`:
+Add to `moon.mod`:
 
 ```json
 { "dependencies": { "aurasuisui/indexmap": "0.3.2" } }
