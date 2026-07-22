@@ -2,6 +2,69 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [0.3.3] - 2026-07-22
+
+Post-competition quality pass fixing four correctness defects named by the
+acceptance review (Entry expansion, `get_mut` deletion, JSON keys) plus a fourth
+(iterator invalidation), and closing the reproduced edge-case gaps in the test
+suite (255 → 277 tests).
+
+### Fixed
+- **Entry API + expansion (could hang / corrupt).** `entry()`'s `VacantEntry::insert`
+  skipped the resize gate, so filling the table purely through the Entry API drove it
+  to 100% occupancy and the next insert spun forever in `robin_hood_insert_at`.
+  `VacantEntry::insert` now delegates to `insert` (resize-aware, fresh probe);
+  `OccupiedEntry::get`/`insert` re-probe by key instead of trusting a cached
+  `bucket_index` that went stale after a resize or a displacing insert; and
+  `robin_hood_insert_at` gained a full-circle termination guard as defense in depth.
+  The now-unused `bucket_index` field was removed from both entry structs.
+- **`get_mut` deletion (silent corruption).** The callback's return value is now
+  authoritative and re-applied via a fresh probe through `insert`/`remove`:
+  `Some(v)` stores `v` (inserting if the callback removed the key), `None` removes the
+  key. This fixes plain deletion (the v0.3.2 BUG-001 `contains` guard had turned it
+  into a no-op), the double `len--` / double tombstone when a callback removes the key
+  itself, ghost entries (remove-then-`Some`), and stale-index mis-writes when a
+  callback triggers a resize.
+  - **Behavior change:** returning `None` removes the key even if the callback
+    re-inserted it (the v0.3.2 "preserve re-insert" behavior is removed); use
+    `Some(v)` to keep a value. `get_mut` on a missing key with `Some(v)` now inserts
+    (upsert) rather than discarding.
+- **`ToJson` key mangling.** Object keys were built via `@debug.to_string(k.to_json())`,
+  which rendered a String key `name` as the literal object key `String("name")` (and
+  `42` as `Number(42)`). Keys now use the key's `Show` rendering (`k.to_string()`),
+  matching `moonbitlang/core`'s own `Map` convention — String keys are canonical.
+  - **Breaking (bound change):** the `IndexMap` `ToJson` impl bound changed from
+    `K : ToJson` to `K : Show`. The previous output was unusable, so no working code
+    relied on it; `pkg.generated.mbti` updated accordingly.
+- **Iterators are now truly fail-fast.** `iter`/`keys`/`values` snapshot a private
+  mutation `version` at creation and abort with `IndexMap: map mutated during
+  iteration` if the map is structurally modified before the iterator is exhausted.
+  Previously, mutating mid-iteration silently skipped entries and could crash with an
+  out-of-bounds access (README Gotcha #5 claimed "fail-fast" but it was not).
+
+### Tests
+- Regression tests for each of the four fixes (each fails on the pre-fix code and
+  passes after).
+- Corrected vacuous/misleading tests: `sort_by_key`+`max_probe` (now also asserts the
+  sorted order), the `eq trait` tests (now actually use `==` and `.hash()`; added a
+  hash-equality test — the `IndexMap` `Eq`/`Hash` impls were previously never
+  executed), the `to_json` QuickCheck test (now verifies every key appears verbatim),
+  `get_mut` on a missing key (now asserts the no-op / upsert behavior), and the
+  `swap_remove` property test (now asserts the resulting order).
+- Ported the independent suite's reproduced edge cases: filling via the Entry API past
+  capacity, an `OccupiedEntry` handle across a resize, `get_mut` delete/remove/resize
+  variants, `ToJson` output for String and non-string keys, `swap_remove_index` order
+  semantics, `from_array` with duplicate keys (IndexMap + IndexSet), edge keys (empty
+  string, negative int, Bool, Char), a 16→256 resize cascade, sort/copy/drain/retain
+  over tombstones, 50% mass deletion, `for`-in iteration, and `IndexSet::to_json`.
+
+### Docs
+- README: reframed the built-in-`Map` comparison (the current core `Map` is a linked
+  hash map that preserves insertion order with order-independent `Eq`; IndexMap's
+  differentiator is index access + the Entry API); rewrote Gotcha #1 (authoritative
+  `get_mut`) and Gotcha #5 (true fail-fast).
+- `cmd/json_order`: corrected the stale "built-in Map does NOT preserve order" framing.
+
 ## [0.3.2] - 2026-07-12
 
 ### Fixed
@@ -31,14 +94,17 @@ All notable changes to moonbit-indexmap will be documented in this file.
 ### Changed
 - **Workspace narrowed to the library only**: `moon.work` now lists just `.`,
   excluding the `cmd/*` example packages. This keeps the library's CI pipeline
-  (`moon fmt --check` / `moon check` / `moon test` / `moon info && git diff --exit-code`)
-  green across the pinned toolchain without being tripped by example-package main
+  (`moon fmt --check` / `moon check` / `moon info && git diff --exit-code` / `moon test` /
+  `moon build`) green across the CI `latest` toolchain without being tripped by example-package main
   declaration syntax (`options("is-main")` vs `pkgtype(kind: "executable")`, which is
   toolchain-version-sensitive). The example sources remain in `cmd/` for reference;
   see the README Examples section for how to run them with a separately-configured
   toolchain. `cmd/*/moon.pkg` are unchanged from v0.3.1 (`options("is-main": true)`).
 - Version bump 0.3.1 → 0.3.2 (patch). No API changes to the library. `cmd/*` example
   `moon.mod` deps and the README install snippet updated to `@0.3.2`.
+- Test suite now **255** (the two regression tests above bring the v0.3.1 count of
+  253 to 255: `map_test` 111, `set_test` 50, `property_test` 47, `bench_test` 36,
+  `arbitrary_test` 11).
 
 ## [0.3.1] - 2026-07-12
 
@@ -115,7 +181,11 @@ All notable changes to moonbit-indexmap will be documented in this file.
   reconciled per-file counts to 253; added historical-record note to Known Issues
 - **CHANGELOG.md**: dropped references to the removed `ROADMAP.md` and `ARCHITECTURE.md`
 
-## [Unreleased]
+## [0.2.x — pre-release development notes]
+
+> These changes shipped across the 0.2.0 / 0.2.1 releases. This block was never
+> collapsed into a dated entry and is preserved here as a historical record; it
+> does not represent unreleased work.
 
 ### Changed
 - **Module renamed** from `indexmap` to `aurasuisui/indexmap` for mooncakes.io publishing
@@ -161,7 +231,7 @@ All notable changes to moonbit-indexmap will be documented in this file.
 - `Default` trait implementations (`IndexMap::default()`, `IndexSet::default()`)
 - `copy()` method for shallow copy of IndexMap and IndexSet
 - `get_mut()` for mutable value access via callback (supports in-place update/insert/delete)
-- `into_iter()` consuming iterator (`IntoIter[K, V]` with `next()`, `collect()`, `count_remaining()`)
+- `into_iter()` consuming iterator (`IntoIter[K, V]` — since renamed `IntoMapIter[K, V]` — with `next()`, `collect()`, `count_remaining()`)
 - `into_array()` consuming conversion to array (both IndexMap and IndexSet)
 - `ToJson` trait implementations (order-preserving JSON serialization)
 - 9 new tests for all v0.2.0 features (220 total)
@@ -184,7 +254,7 @@ All notable changes to moonbit-indexmap will be documented in this file.
 - Positional access: `first()`, `last()`, `pop()`, `swap_remove_index(i)`
 - Capacity management: `reserve(n)`, `shrink_to_fit()`, `capacity()`, `load_factor()`, `max_probe()`
 - Iterators: `iter()`, `keys()`, `values()` with `next()`, `collect()`, `count_remaining()`
-- Bulk operations: `retain(f)`, `sort_by_key()`, `sort_by(cmp)`, `drain()`, `extend(entries)`, `for_each(f)`
+- Bulk operations: `retain(f)`, `sort_by_key()`, `sort_by(cmp)`, `drain()`, `extend(entries)` (renamed to `extend_from_array` in v0.3.0), `for_each(f)`
 - Set operations: `is_disjoint`, `is_subset`, `is_superset`
 - Trait implementations: `Show`, `Hash`, `Eq` for IndexMap; `Show` for IndexSet
 - Comprehensive test suite (157 tests): unit tests, benchmark tests, property-based tests

@@ -8,8 +8,8 @@
 
 git clone https://github.com/aurasuisui/moonbit-indexmap
 cd moonbit-indexmap
-moon check   # Type check (0 errors)
-moon test    # Run 255 tests
+moon check   # Type check (14 expected [0083] warnings, 0 errors)
+moon test    # Run 277 tests
 moon fmt     # Format code
 ```
 
@@ -22,8 +22,8 @@ moon fmt     # Format code
 │   ├── map.mbt           # IndexMap[K, V] core (all logic lives here)
 │   ├── set.mbt           # IndexSet[K] — thin wrapper over IndexMap[K, Unit]
 │   ├── hash.mbt          # Shared hash constants (load factor, sentinels)
-│   ├── map_test.mbt      # Black-box tests for IndexMap (111 tests)
-│   ├── set_test.mbt      # Black-box tests for IndexSet (50 tests)
+│   ├── map_test.mbt      # Black-box tests for IndexMap (131 tests)
+│   ├── set_test.mbt      # Black-box tests for IndexSet (52 tests)
 │   ├── bench_test.mbt    # Correctness-under-load tests (36 tests)
 │   ├── property_test.mbt # Invariant/property tests (47 tests)
 │   ├── arbitrary_test.mbt # QuickCheck property tests (11 tests)
@@ -176,7 +176,7 @@ These must ALWAYS hold true. Breaking any of them will cause bugs:
 | Invariant | Enforced By |
 |-----------|-------------|
 | `self.len == count of non-tombstone entries in buckets` | All insert/remove paths |
-| `self.order.length() == self.len` | remove_from_order (swap-remove), sort rebuilds |
+| `self.order.length() == self.len` | remove_from_order (shift-remove), sort rebuilds |
 | `self.positions.size() == self.len` | All insert/remove paths that touch order |
 | `self.positions[key] == index` for each `order[index] == key` | insert, remove_from_order, sort rebuilds |
 | `self.mask == self.buckets.length() - 1` | Constructor, resize |
@@ -217,13 +217,13 @@ Trait bounds must include `Hash + Eq` when the implementation iterates (which re
 
 | File | Type | Count | What It Tests |
 |------|------|-------|---------------|
-| `map_test.mbt` | Unit | 111 | Per-method correctness, edge cases, order |
-| `set_test.mbt` | Unit | 50 | IndexSet methods, set operations |
+| `map_test.mbt` | Unit | 131 | Per-method correctness, edge cases, order |
+| `set_test.mbt` | Unit | 52 | IndexSet methods, set operations |
 | `property_test.mbt` | Invariant | 47 | Properties that hold across operations |
 | `bench_test.mbt` | Load | 36 | Correctness under scale (5k-10k entries) |
 | `arbitrary_test.mbt` | QuickCheck | 11 | QuickCheck property tests for IndexMap + IndexSet |
 
-(Total: 255 tests.)
+(Total: 277 tests.)
 
 ### Test Convention
 
@@ -247,7 +247,7 @@ unstable snapshots when one `debug_inspect` runs N times with N different values
 ### Running Tests
 
 ```bash
-moon test                    # All 255 tests
+moon test                    # All 277 tests
 moon test --test-filter "bench"   # Only bench tests
 moon test --test-filter "property" # Only property tests
 ```
@@ -256,8 +256,11 @@ moon test --test-filter "property" # Only property tests
 
 ## Known Issues & Gotchas
 
-> **Note:** All items below are historical records from earlier development cycles
-> and have been resolved. For current known limitations, see the
+> **Note:** Items 1–6 below are historical records from earlier development cycles
+> and have been resolved. Two caveats: item 7 (`rehash` duplicates
+> `robin_hood_insert_at`) remains a low-priority open item, and item 5's O(1)
+> swap-remove "fix" was later reverted to O(n) shift-remove (see README Gotcha #3).
+> For current known limitations, see the
 > [README Gotchas section](README.md#gotchas).
 
 ### 1. ~~VERSION mismatch~~ ✅ Fixed
@@ -275,8 +278,12 @@ probe chains). v0.3.2 additionally fixed BUG-001: a callback that re-inserts the
 returns `None` no longer has its just-inserted value clobbered by the tombstone — a
 `contains(key)` guard skips the tombstone path. See README Gotcha #1.
 
-### 5. ~~O(n) remove_from_order~~ ✅ Fixed
-Replaced with O(1) swap-remove using a `positions: Map[K, Int]` for key→index lookup.
+### 5. remove_from_order — O(1) swap-remove attempted, then reverted
+Briefly replaced the O(n) shift-remove with an O(1) swap-remove using a
+`positions: Map[K, Int]` for key→index lookup. **Reverted to O(n) shift-remove**
+because swap-remove broke the insertion order of remaining elements, which
+contradicts IndexMap's core guarantee (see README Gotcha #3). The `positions` map
+is kept for O(1) `get_index_of`; deletion is order-preserving shift-remove.
 
 ### 6. ~~sort_entries / sort_entries_by were unused~~ ✅ Fixed
 Removed. Sorting is done inline in `sort_by_key` and `sort_by`.
@@ -294,10 +301,13 @@ The rehash function has its own copy of the Robin Hood insertion loop instead of
 ### v0.2.0 — Standard Library Integration ✅
 - `Debug`, `Default`, `ToJson`, `copy()`, `get_mut()`, `into_iter()`, `into_array()`, native sort
 
+### v0.2.1 — Re-publish to mooncakes.io ✅
+- Docs-only release re-published to mooncakes.io (no code changes)
+
 ### v0.3.0 — Competition Acceptance ✅
 - [x] Runnable `cmd/*` example packages (lru_cache, config_parse, json_order)
 - [x] `extend` → `extend_from_array` ([0035] reserved keyword)
-- [x] CI updated to the 4-step pipeline (`moon fmt --check` / `moon check` / `moon info && git diff --exit-code` / `moon test` / `moon build`); `pkg.generated.mbti` CI-tracked
+- [x] CI updated to the 5-step pipeline (`moon fmt --check` / `moon check` / `moon info && git diff --exit-code` / `moon test` / `moon build`); `pkg.generated.mbti` CI-tracked
 - [x] Migrated to TOML `moon.mod` / `moon.pkg`
 
 ### v0.3.1 — Warning Cleanup ✅
@@ -310,8 +320,15 @@ The rehash function has its own copy of the Robin Hood insertion loop instead of
 - [x] BUG-001 fixed: `get_mut` re-insert-same-key-then-`None` no longer loses data (`contains` guard)
 - [x] WARN-003 fixed: `max_probe_distance` recalculated after `sort_by` / `sort_by_key` (`recalc_max_probe()`)
 - [x] WARN-002 clarified: README Gotcha #3 self-contradiction resolved
-- [x] `cmd/*` excluded from `moon.work` so the library CI pipeline stays green on the pinned toolchain (example main-declaration syntax is toolchain-version-sensitive); sources remain for reference
-- [ ] Publish v0.3.2 to mooncakes.io
+- [x] `cmd/*` excluded from `moon.work` so the library CI pipeline stays green on the CI `latest` toolchain (example main-declaration syntax is toolchain-version-sensitive); sources remain for reference
+- [x] Publish v0.3.2 to mooncakes.io
+
+### v0.3.3 — Post-Verdict Correctness Pass ✅
+- [x] Entry API resize/stale-index fixed (no more infinite loop when filling via `entry()`; `OccupiedEntry` re-probes by key; `robin_hood_insert_at` termination guard; dropped the `bucket_index` field)
+- [x] `get_mut` reworked to an authoritative contract (return value re-applied via a fresh `insert`/`remove`); fixes broken plain deletion, double-decrement, ghost entries, and resize mis-writes
+- [x] `ToJson` keys fixed (`k.to_string()`, canonical for String keys); bound `K : ToJson` → `K : Show`
+- [x] Iterators made truly fail-fast (mutation `version` counter + clear abort)
+- [x] Regression tests for all four fixes; vacuous/misleading tests corrected; reproduced edge cases ported (255 → 277 tests)
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
 

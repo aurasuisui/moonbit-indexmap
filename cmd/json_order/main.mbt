@@ -1,18 +1,19 @@
 // Example: JSON serialization with preserved key order.
 //
-// Unlike MoonBit's built-in Map, IndexMap's ToJson implementation
-// preserves insertion order. This is critical for APIs where
-// field order matters (e.g., human-readable config, canonical JSON).
+// IndexMap's ToJson implementation preserves insertion order, which is critical
+// for APIs where field order matters (e.g., human-readable config, canonical
+// JSON). Current MoonBit's built-in Map is also insertion-ordered; IndexMap's
+// edge is index-based access (get_index / first / last / pop) plus an Entry API.
 //
 // Usage (in your project's moon.mod.json):
-//   { "dependencies": { "aurasuisui/indexmap": "0.2.0" } }
+//   { "dependencies": { "aurasuisui/indexmap": "0.3.3" } }
 
 ///|
 fn main {
   // ---- IndexMap preserves key order in JSON ----
   let ordered = @indexmap.new()
   ordered.insert("name", "MoonBit IndexMap") |> ignore
-  ordered.insert("version", "0.2.0") |> ignore
+  ordered.insert("version", "0.3.3") |> ignore
   ordered.insert("license", "Apache-2.0") |> ignore
   ordered.insert("author", "aurasuisui") |> ignore
 
@@ -21,17 +22,17 @@ fn main {
   println(@debug.to_string(ordered_json))
   // Output keys in order: name, version, license, author
 
-  // ---- Built-in Map does NOT preserve order ----
-  let unordered : Map[String, Json] = Map([])
-  unordered["name"] = Json::string("MoonBit IndexMap")
-  unordered["version"] = Json::string("0.2.0")
-  unordered["license"] = Json::string("Apache-2.0")
-  unordered["author"] = Json::string("aurasuisui")
+  // ---- Built-in Map (also insertion-ordered in current MoonBit) ----
+  let builtin_map : Map[String, Json] = Map([])
+  builtin_map["name"] = Json::string("MoonBit IndexMap")
+  builtin_map["version"] = Json::string("0.3.3")
+  builtin_map["license"] = Json::string("Apache-2.0")
+  builtin_map["author"] = Json::string("aurasuisui")
 
-  let unordered_json = Json::object(unordered)
-  println("=== Built-in Map (order not guaranteed) ===")
-  println(@debug.to_string(unordered_json))
-  // Keys may appear in any order
+  let builtin_json = Json::object(builtin_map)
+  println("=== Built-in Map (insertion-ordered too) ===")
+  println(@debug.to_string(builtin_json))
+  // Current MoonBit maps keep insertion order; IndexMap adds index access + Entry API
 
   // ---- IndexSet also preserves order in JSON ----
   let tags = @indexmap.IndexSet::new()

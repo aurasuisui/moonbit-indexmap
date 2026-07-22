@@ -5,7 +5,7 @@
 
 A hash map that preserves insertion order — MoonBit port of Rust's [`indexmap`](https://github.com/indexmap-rs/indexmap) crate.
 
-MoonBit's built-in `Map[K, V]` does not guarantee iteration order. IndexMap remembers the order keys were inserted, making it ideal for configuration parsing, JSON serialization, LRU caches, and deterministic tests.
+MoonBit's built-in `Map[K, V]` preserves insertion order but offers no way to address entries by position. IndexMap pairs that insertion-order guarantee with **index-based access** (`get_index`, `get_index_of`, `first`, `last`, `pop`, `swap_remove_index`), an **Entry API**, and order-sensitive `Eq`/`Hash`, making it ideal for configuration parsing, JSON serialization, LRU caches, and deterministic tests.
 
 ```moonbit
 let map = @aurasuisui/indexmap.new()
@@ -39,7 +39,7 @@ while true {
 Add to `moon.mod`:
 
 ```json
-{ "dependencies": { "aurasuisui/indexmap": "0.3.2" } }
+{ "dependencies": { "aurasuisui/indexmap": "0.3.3" } }
 ```
 
 Or clone directly:
@@ -69,9 +69,11 @@ git clone https://github.com/aurasuisui/moonbit-indexmap
 | Category | Methods |
 |----------|---------|
 | Construct | `new()`, `with_capacity(n)`, `from_array(elements)`, `default()`, `copy()` |
+| Query | `len()`, `is_empty()`, `capacity()` |
 | Core | `insert(v) -> Bool`, `contains(v) -> Bool`, `remove(v) -> Bool`, `clear()` |
 | Set ops | `is_disjoint(other)`, `is_subset(other)`, `is_superset(other)` |
-| Bulk | `retain(f)`, `drain()`, `extend_from_array(elements)`, `into_array()` |
+| Iterate | `iter()`, `into_array()` |
+| Bulk | `retain(f)`, `drain()`, `extend_from_array(elements)` |
 | Traits | `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` |
 
 ## Design
@@ -88,9 +90,9 @@ Deletion uses tombstone markers to preserve probe chains, with automatic rehash 
 | Property | `Map[K, V]` | `IndexMap[K, V]` |
 |----------|-------------|-------------------|
 | Lookup | O(1) avg | O(1) avg |
-| Iteration order | Undefined | Insertion order |
-| Index access | No | Yes |
-| Memory | Lower | ~2× (order array) |
+| Iteration order | Insertion order (linked map) | Insertion order |
+| Index access (`get_index`, `first`, `pop`, …) | No | Yes |
+| Entry API (`Occupied` / `Vacant`) | No | Yes |
 | `Eq` / `Hash` semantics | Independent of insertion order | Dependent on insertion order |
 
 ## Gotchas
@@ -99,12 +101,16 @@ Known design choices and limitations — see the
 [independent test report](https://github.com/aurasuisui/indexmap-test-suite/blob/main/TEST_REPORT.md)
 for reproduction details.
 
-1. **`get_mut` callback re-inserting the same key (fixed in v0.3.2).**
-   Previously, a callback that called `map.insert(same_key, ...)` and then returned
-   `None` would have its just-inserted value clobbered by the tombstone. A
-   `contains(key)` guard now detects this re-insertion and skips the tombstone,
-   so the value is preserved. To update a value in place, `Some(new_val)` is
-   still the recommended (and now the only safe-against-footguns) path.
+1. **`get_mut` semantics: the callback's return value is authoritative
+   (reworked in v0.3.3).** `get_mut(key, f)` passes the current value to `f`
+   (or `None` if the key is absent) and then re-applies the result through
+   `insert`/`remove`: `Some(v)` stores `v` under `key` (inserting it if the
+   callback removed it), and `None` removes `key`. Returning `None` therefore
+   removes the key *even if the callback re-inserted it* — return `Some(v)` to
+   keep a value. Because the result is re-applied via a fresh probe, the callback
+   may safely mutate the map (including triggering a resize). Earlier versions
+   wrote back to a stale bucket index, which could corrupt the table and silently
+   broke plain deletion.
 
 2. **`Eq` and `Hash` are insertion-order-sensitive.** Two maps with identical
    key-value pairs but different insertion orders are *not* equal and produce
@@ -126,17 +132,22 @@ for reproduction details.
    buckets, so previously the value happened to remain correct — it is now
    maintained explicitly.)
 
-5. **Don't mutate the map while an iterator is active.** Iterators hold a cursor
-   into the order array; `insert` or `remove` during iteration causes an
-   out-of-bounds crash (fail-fast). Finish all mutations first, then create a
-   fresh iterator.
+5. **Don't mutate the map while an iterator is active.** Each iterator snapshots
+   the map's mutation version at creation; if the map is structurally modified
+   (`insert`, `remove`, `clear`, `retain`, `sort_by*`, `reserve`, `shrink_to_fit`,
+   or an Entry / `get_mut` mutation) before the iterator is exhausted, the next
+   `next()` aborts with `IndexMap: map mutated during iteration` — true fail-fast,
+   added in v0.3.3. Earlier versions silently skipped entries and could crash with
+   an out-of-bounds access. Finish all mutations first, then create a fresh
+   iterator.
 
 ## Independent Test Report
 
 An independent black-box test suite ([`indexmap-test-suite`](https://github.com/aurasuisui/indexmap-test-suite))
-verified this library with **485 tests** (253 library self-tests + 232 external
-tests covering every public API, stress up to 100k entries, property-based
-invariants, and edge-case traps).
+verified this library against **485 external tests** covering every public API,
+stress up to 100k entries, property-based invariants, and edge-case traps. The
+library itself carries **277 self-tests** (run `moon test`; see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the per-file breakdown).
 
 Conclusion: **production-ready for single-threaded use.** Known caveats are
 documented in the [Gotchas](#gotchas) section above.
@@ -151,8 +162,9 @@ The example packages live in [`cmd/`](cmd/):
 
 > **Note (v0.3.2):** the `cmd/*` example packages are currently **excluded from the
 > workspace** (`moon.work` lists only `.`) so that the library's CI pipeline
-> (`moon fmt --check` / `moon check` / `moon test` / `moon info`) runs on the canonically
-> pinned toolchain without being tripped up by example-package main declaration syntax.
+> (`moon fmt --check` / `moon check` / `moon info && git diff --exit-code` / `moon test` /
+> `moon build`) runs on the CI `latest` toolchain without being tripped up by
+> example-package main declaration syntax.
 > To run an example, temporarily re-add the relevant `cmd/<name>` to `members` in
 > `moon.work` (or use a separately-configured build toolchain) and resolve the
 > `aurasuisui/indexmap` dependency, then `moon run cmd/<name>`. Source remains in `cmd/`
@@ -161,10 +173,15 @@ The example packages live in [`cmd/`](cmd/):
 ## Development
 
 ```bash
-moon check   # Type check
+moon check   # Type check (14 expected [0083] deprecation warnings, 0 errors)
 moon test    # Run all tests
 moon fmt     # Format code
 ```
+
+`moon check` currently reports 14 `[0083]` deprecation warnings (toolchain
+≥ 0.1.20260713 flags method calls on multi-trait-bound type parameters, e.g.
+`key.hash()`). These are intentional and not fixed; CI runs `moon check` without
+`--deny-warn`, so they do not fail the build.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for project layout, roadmap, and contribution guidelines.
 

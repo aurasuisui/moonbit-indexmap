@@ -1,7 +1,7 @@
 // Example: Configuration file parser with order-preserving key-value pairs.
 //
 // Usage (in your project's moon.mod.json):
-//   { "dependencies": { "aurasuisui/indexmap": "0.2.0" } }
+//   { "dependencies": { "aurasuisui/indexmap": "0.3.3" } }
 //
 // MoonBit's built-in Map doesn't preserve insertion order. When parsing
 // a config file, you want keys to appear in the same order the user wrote them.

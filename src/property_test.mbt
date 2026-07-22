@@ -678,18 +678,22 @@ test "property: remove all in random order leaves empty" {
 }
 
 ///|
-test "property: swap_remove then insert preserves order semantics" {
+test "property: swap_remove_index is order-preserving shift-remove" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   map.insert("c", 3) |> ignore
   map.insert("d", 4) |> ignore
-  // swap_remove "b" (index 1)
+  // Remove index 1 ("b"). This is a shift-remove: survivors keep their relative
+  // order (a, c, d); a true swap-with-last would yield (a, d, c).
   map.swap_remove_index(1) |> ignore
   debug_inspect(map.len(), content="3")
-  // After swap-remove, order array should be compact (no holes)
-  let entries = map.iter().collect()
-  debug_inspect(entries.length(), content="3")
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["a", "c", "d"]
+    ),
+  )
 }
 
 ///|

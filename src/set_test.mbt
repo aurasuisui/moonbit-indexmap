@@ -712,3 +712,45 @@ test "IndexSet Hash different order different hash" {
   b.insert(1) |> ignore
   debug_inspect(a.hash() != b.hash(), content="true")
 }
+
+///|
+test "IndexSet to_json preserves insertion order as a JSON array" {
+  let set = @aurasuisui/indexmap.IndexSet::new()
+  set.insert("hashmap") |> ignore
+  set.insert("indexmap") |> ignore
+  set.insert("ordered") |> ignore
+  match set.to_json() {
+    Array(arr) => {
+      debug_inspect(arr.length(), content="3")
+      // Extract the raw string from each element to verify order is preserved.
+      let got : Array[String] = []
+      let mut i = 0
+      while i < arr.length() {
+        match arr[i] {
+          String(s) => got.push(s)
+          _ => @test.fail("expected string elements")
+        }
+        i = i + 1
+      }
+      debug_inspect(
+        got,
+        content=(
+          #|["hashmap", "indexmap", "ordered"]
+        ),
+      )
+    }
+    _ => @test.fail("expected a JSON array")
+  }
+}
+
+///|
+test "IndexSet from_array with duplicates keeps first-occurrence order" {
+  let set = @aurasuisui/indexmap.IndexSet::from_array(["a", "b", "a", "c", "b"])
+  debug_inspect(set.len(), content="3")
+  debug_inspect(
+    set.iter().collect(),
+    content=(
+      #|["a", "b", "c"]
+    ),
+  )
+}

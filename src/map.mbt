@@ -37,6 +37,7 @@ struct IndexMap[K, V] {
   mut mask : Int
   mut tombstone_count : Int
   mut max_probe_distance : Int
+  mut version : Int
 }
 
 ///|
@@ -59,7 +60,6 @@ pub struct OccupiedEntry[K, V] {
   map : IndexMap[K, V]
   key : K
   hash : Int
-  bucket_index : Int
 }
 
 ///|
@@ -68,7 +68,6 @@ pub struct VacantEntry[K, V] {
   map : IndexMap[K, V]
   key : K
   hash : Int
-  bucket_index : Int
 }
 
 // ---------------------------------------------------------------------------
@@ -177,8 +176,17 @@ fn[K, V] IndexMap::robin_hood_insert_at(
   } else {
     (start_idx - (hash & self.mask)) & self.mask
   }
+  // Defense in depth: the load-factor invariant guarantees a free or tombstone
+  // slot, so this loop terminates well within `cap` steps. The guard turns a
+  // would-be infinite loop (table driven to 100% live occupancy) into an abort.
+  let cap = self.buckets.length()
+  let mut steps = 0
 
   while true {
+    if steps > cap {
+      abort("IndexMap: robin_hood_insert_at found no free slot (table full)")
+    }
+    steps = steps + 1
     match self.buckets[i] {
       None => {
         entry.distance = dist
@@ -350,6 +358,7 @@ pub fn[K : Hash + Eq, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
     mask,
     tombstone_count: 0,
     max_probe_distance: 0,
+    version: 0,
   }
 }
 
@@ -419,6 +428,7 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
   value : V,
 ) -> V? {
   let hash = key.hash()
+  self.version = self.version + 1
   if should_resize_impl(self.len + self.tombstone_count, self.buckets.length()) {
     self.resize(self.buckets.length() * 2)
   }
@@ -449,9 +459,17 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
 }
 
 ///|
-/// Get a mutable reference to the value associated with `key` via callback.
-/// The callback receives `Some(value)` if the key exists, or `None` if not.
-/// Changes to the value in the callback are written back to the map.
+/// Update the value associated with `key` via a callback (an in-place upsert).
+/// The callback receives `Some(value)` if the key exists, or `None` if it does
+/// not. Its return value is authoritative:
+/// - `Some(v)` stores `v` under `key`, inserting the key if it was absent.
+/// - `None` removes `key` from the map.
+///
+/// The callback may mutate the map through its closure; the result is always
+/// re-applied via `insert`/`remove` (which re-probe and handle resizing), so
+/// resizing or removing `key` inside the callback is safe. Returning `None`
+/// removes `key` even if the callback re-inserted it — return `Some(v)` to keep
+/// a value.
 pub fn[K : Hash + Eq, V] IndexMap::get_mut(
   self : IndexMap[K, V],
   key : K,
@@ -459,42 +477,19 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
 ) -> Unit {
   let hash = key.hash()
   let (idx, found) = self.probe_find(key, hash)
-  if found {
+  // Snapshot the current value BEFORE the callback runs; the callback may mutate
+  // the map, so `idx` must not be reused afterwards.
+  let current : V? = if found {
     match self.buckets[idx] {
-      Some(entry) =>
-        match f(Some(entry.value)) {
-          Some(new_val) => {
-            let new_entry = {
-              key: entry.key,
-              value: new_val,
-              hash: entry.hash,
-              distance: entry.distance,
-            }
-            self.buckets[idx] = Some(new_entry)
-          }
-          None => {
-            // BUG-001 fix: if the callback re-inserted the same key (e.g.
-            // `map.insert(key, new_val)` inside `f`), the new entry is already
-            // in the bucket. Writing a tombstone here would clobber it, so we
-            // skip the entire deletion path and return untouched.
-            if self.contains(key) {
-              return
-            }
-            self.buckets[idx] = Some({
-              key: entry.key,
-              value: entry.value,
-              hash: TOMBSTONE_HASH,
-              distance: NO_DISTANCE,
-            })
-            self.remove_from_order(key)
-            self.tombstone_count = self.tombstone_count + 1
-            self.len = self.len - 1
-          }
-        }
-      None => f(None) |> ignore
+      Some(entry) => Some(entry.value)
+      None => None
     }
   } else {
-    f(None) |> ignore
+    None
+  }
+  match f(current) {
+    Some(new_val) => self.insert(key, new_val) |> ignore
+    None => self.remove(key) |> ignore
   }
 }
 
@@ -525,6 +520,7 @@ pub fn[K : Hash + Eq, V] IndexMap::remove(self : IndexMap[K, V], key : K) -> V? 
     None => return None
     Some(entry) => {
       let removed_value = entry.value
+      self.version = self.version + 1
       self.buckets[idx] = Some({
         key: entry.key,
         value: entry.value,
@@ -563,6 +559,7 @@ pub fn[K : Hash + Eq, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
   self.len = 0
   self.tombstone_count = 0
   self.max_probe_distance = 0
+  self.version = self.version + 1
 }
 
 ///|
@@ -587,6 +584,7 @@ pub fn[K : Hash + Eq, V] IndexMap::copy(
     mask: self.mask,
     tombstone_count: self.tombstone_count,
     max_probe_distance: self.max_probe_distance,
+    version: 0,
   }
 }
 
@@ -601,6 +599,7 @@ pub fn[K : Hash + Eq, V] IndexMap::reserve(
   if needed > cap || needed * 4 > cap * 3 {
     let new_cap = next_power_of_two_impl(needed * 2)
     self.resize(if new_cap < MIN_CAPACITY { MIN_CAPACITY } else { new_cap })
+    self.version = self.version + 1
   }
 }
 
@@ -611,6 +610,7 @@ pub fn[K : Hash + Eq, V] IndexMap::shrink_to_fit(self : IndexMap[K, V]) -> Unit 
   let real_cap = if new_cap < MIN_CAPACITY { MIN_CAPACITY } else { new_cap }
   if real_cap < self.buckets.length() {
     self.rehash(real_cap)
+    self.version = self.version + 1
   }
 }
 
@@ -625,27 +625,42 @@ pub fn[K : Hash + Eq, V] IndexMap::entry(
   key : K,
 ) -> EntryView[K, V] {
   let hash = key.hash()
-  let (idx, found) = self.robin_hood_find(key, hash)
+  let (_, found) = self.robin_hood_find(key, hash)
   if found {
-    Occupied({ map: self, key, hash, bucket_index: idx })
+    Occupied({ map: self, key, hash })
   } else {
-    Vacant({ map: self, key, hash, bucket_index: idx })
+    Vacant({ map: self, key, hash })
   }
 }
 
 ///|
 /// Get the value stored in this occupied entry.
-pub fn[K, V] OccupiedEntry::get(self : OccupiedEntry[K, V]) -> V {
-  match self.map.buckets[self.bucket_index] {
+/// Re-probes by key, so a stale handle (the map mutated after `entry()` was
+/// called) cannot return another key's value.
+pub fn[K : Eq, V] OccupiedEntry::get(self : OccupiedEntry[K, V]) -> V {
+  let (idx, found) = self.map.probe_find(self.key, self.hash)
+  if !found {
+    abort("OccupiedEntry: key is no longer present in the map")
+  }
+  match self.map.buckets[idx] {
     Some(entry) => entry.value
-    None => abort("OccupiedEntry: bucket unexpectedly empty")
+    None => abort("OccupiedEntry: key is no longer present in the map")
   }
 }
 
 ///|
 /// Replace the value in this occupied entry, returning the old value.
-pub fn[K, V] OccupiedEntry::insert(self : OccupiedEntry[K, V], value : V) -> V {
-  match self.map.buckets[self.bucket_index] {
+/// Re-probes by key, so a stale handle (the map mutated after `entry()` was
+/// called) cannot overwrite another key's value.
+pub fn[K : Eq, V] OccupiedEntry::insert(
+  self : OccupiedEntry[K, V],
+  value : V,
+) -> V {
+  let (idx, found) = self.map.probe_find(self.key, self.hash)
+  if !found {
+    abort("OccupiedEntry: key is no longer present in the map")
+  }
+  match self.map.buckets[idx] {
     Some(entry) => {
       let old = entry.value
       let new_entry = {
@@ -654,10 +669,11 @@ pub fn[K, V] OccupiedEntry::insert(self : OccupiedEntry[K, V], value : V) -> V {
         hash: entry.hash,
         distance: entry.distance,
       }
-      self.map.buckets[self.bucket_index] = Some(new_entry)
+      self.map.buckets[idx] = Some(new_entry)
+      self.map.version = self.map.version + 1
       old
     }
-    None => abort("OccupiedEntry: bucket unexpectedly empty")
+    None => abort("OccupiedEntry: key is no longer present in the map")
   }
 }
 
@@ -678,15 +694,15 @@ pub fn[K, V] OccupiedEntry::key(self : OccupiedEntry[K, V]) -> K {
 
 ///|
 /// Insert a value into this vacant entry, returning the value inserted.
+/// Delegates to `IndexMap::insert`, which runs the resize gate and a fresh
+/// probe. Filling the map via the Entry API can therefore no longer skip
+/// expansion (which previously could drive insertion into an infinite loop),
+/// and a stale handle cannot corrupt the table.
 pub fn[K : Hash + Eq, V] VacantEntry::insert(
   self : VacantEntry[K, V],
   value : V,
 ) -> V {
-  let entry = { key: self.key, value, hash: self.hash, distance: NO_DISTANCE }
-  self.map.robin_hood_insert_at(entry, self.bucket_index, self.hash)
-  self.map.order.push(self.key)
-  self.map.positions[self.key] = self.map.order.length() - 1
-  self.map.len = self.map.len + 1
+  self.map.insert(self.key, value) |> ignore
   value
 }
 
@@ -798,8 +814,12 @@ pub fn[K : Hash + Eq, V] IndexMap::pop(self : IndexMap[K, V]) -> (K, V)? {
 pub fn[K : Hash + Eq, V] IndexMap::iter(self : IndexMap[K, V]) -> Iter[(K, V)] {
   let mut pos = 0
   let len = self.order.length()
+  let version = self.version
   Iter::new(
     fn() -> (K, V)? {
+      if self.version != version {
+        abort("IndexMap: map mutated during iteration")
+      }
       while pos < len {
         let key = self.order[pos]
         pos = pos + 1
@@ -819,8 +839,12 @@ pub fn[K : Hash + Eq, V] IndexMap::iter(self : IndexMap[K, V]) -> Iter[(K, V)] {
 pub fn[K : Hash + Eq, V] IndexMap::keys(self : IndexMap[K, V]) -> Iter[K] {
   let mut pos = 0
   let len = self.order.length()
+  let version = self.version
   Iter::new(
     fn() -> K? {
+      if self.version != version {
+        abort("IndexMap: map mutated during iteration")
+      }
       while pos < len {
         let key = self.order[pos]
         pos = pos + 1
@@ -839,8 +863,12 @@ pub fn[K : Hash + Eq, V] IndexMap::keys(self : IndexMap[K, V]) -> Iter[K] {
 pub fn[K : Hash + Eq, V] IndexMap::values(self : IndexMap[K, V]) -> Iter[V] {
   let mut pos = 0
   let len = self.order.length()
+  let version = self.version
   Iter::new(
     fn() -> V? {
+      if self.version != version {
+        abort("IndexMap: map mutated during iteration")
+      }
       while pos < len {
         let key = self.order[pos]
         pos = pos + 1
@@ -953,6 +981,7 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
 ) -> Unit {
   let entries = self.iter().collect()
   entries.sort_by(fn(a, b) { a.0.compare(b.0) })
+  self.version = self.version + 1
   self.order = []
   self.positions = Map([])
   let mut i = 0
@@ -989,6 +1018,7 @@ pub fn[K : Hash + Eq, V] IndexMap::sort_by(
 ) -> Unit {
   let entries = self.iter().collect()
   entries.sort_by(cmp)
+  self.version = self.version + 1
   self.order = []
   self.positions = Map([])
   let mut i = 0
@@ -1118,15 +1148,18 @@ pub impl[K : Hash + Eq, V : Eq] Eq for IndexMap[K, V] with fn equal(self, other)
 }
 
 ///|
-/// Serialize an IndexMap to JSON, preserving insertion order.
-pub impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with fn to_json(
+/// Serialize an IndexMap to a JSON object, preserving insertion order.
+/// Object keys are the keys' `Show` rendering (`to_string`), matching
+/// `moonbitlang/core`'s own `Map` ToJson convention: a `String` key becomes the
+/// raw string (canonical JSON), an `Int` key becomes its decimal text, etc.
+pub impl[K : Show + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with fn to_json(
   self,
 ) {
   let obj : Map[String, Json] = Map([])
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => obj[@debug.to_string(k.to_json())] = v.to_json()
+      Some((k, v)) => obj[k.to_string()] = v.to_json()
       None => break
     }
   }

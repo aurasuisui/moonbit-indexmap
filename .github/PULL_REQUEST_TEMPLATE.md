@@ -12,8 +12,8 @@ Brief description of what this PR changes and why.
 ## Checklist
 
 - [ ] `moon check` passes with no errors
-- [ ] `moon test` passes (all 255 tests)
-- [ ] `moon check --deny-warn` is clean
+- [ ] `moon test` passes (all 277 tests)
+- [ ] `moon check` shows no new warnings (14 pre-existing `[0083]` deprecation warnings are expected)
 - [ ] `moon fmt --check` is clean
 - [ ] Added or updated tests for the change
 - [ ] Updated README / CHANGELOG if the public API changed

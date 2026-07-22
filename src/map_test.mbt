@@ -323,18 +323,24 @@ test "sort_by_key" {
 }
 
 ///|
-test "sort_by_key refreshes max_probe" {
+test "sort_by_key sorts entries and keeps max_probe consistent" {
   let map = @aurasuisui/indexmap.new()
   map.insert("c", 3) |> ignore
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
   let before = map.max_probe()
   map.sort_by_key()
-  let after = map.max_probe()
-  // Sorting does not move buckets, so max_probe should be unchanged but
-  // still explicitly recalculated (sanity: non-negative and equal to before).
-  debug_inspect(after >= 0, content="true")
-  debug_inspect(before == after, content="true")
+  // sort_by_key rebuilds order[]/positions[] but does not move buckets, so the
+  // probe distribution is unchanged; recalc_max_probe() keeps max_probe_distance
+  // explicitly in sync with the live buckets rather than relying on that fact.
+  debug_inspect(map.max_probe() == before, content="true")
+  // The observable effect of sorting: keys now iterate in sorted order.
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["a", "b", "c"]
+    ),
+  )
 }
 
 ///|
@@ -997,21 +1003,10 @@ test "eq trait for indexmap" {
   let b = @aurasuisui/indexmap.new()
   b.insert("k1", 10) |> ignore
   b.insert("k2", 20) |> ignore
-  // Compare by iteration
-  let a_entries = a.iter().collect()
-  let b_entries = b.iter().collect()
-  debug_inspect(a_entries.length() == b_entries.length(), content="true")
-  let mut i = 0
-  let mut eq = true
-  while i < a_entries.length() {
-    if a_entries[i].0 != b_entries[i].0 || a_entries[i].1 != b_entries[i].1 {
-      eq = false
-    }
-    i = i + 1
-  }
-  debug_inspect(eq, content="true")
+  // Exercise the actual Eq trait impl (==): same pairs, same order -> equal.
+  debug_inspect(a == b, content="true")
   b.insert("k3", 30) |> ignore
-  debug_inspect(a.len() == b.len(), content="false")
+  debug_inspect(a == b, content="false")
 }
 
 ///|
@@ -1022,17 +1017,29 @@ test "eq trait different order not equal" {
   let b = @aurasuisui/indexmap.new()
   b.insert("b", 2) |> ignore
   b.insert("a", 1) |> ignore
-  let a_entries = a.iter().collect()
-  let b_entries = b.iter().collect()
-  debug_inspect(a_entries[0].0 == b_entries[0].0, content="false")
+  // Eq is insertion-order-sensitive: same pairs, different order -> not equal.
+  debug_inspect(a == b, content="false")
 }
 
 ///|
 test "eq trait empty maps" {
   let a : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
   let b : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
-  debug_inspect(a.len() == b.len(), content="true")
-  debug_inspect(a.is_empty() == b.is_empty(), content="true")
+  debug_inspect(a == b, content="true")
+  debug_inspect(a.hash() == b.hash(), content="true")
+}
+
+///|
+test "hash trait equal maps produce equal hashes" {
+  let a = @aurasuisui/indexmap.new()
+  a.insert("x", 1) |> ignore
+  a.insert("y", 2) |> ignore
+  let b = @aurasuisui/indexmap.new()
+  b.insert("x", 1) |> ignore
+  b.insert("y", 2) |> ignore
+  // Exercise the actual Hash trait impl: equal maps hash equal.
+  debug_inspect(a == b, content="true")
+  debug_inspect(a.hash() == b.hash(), content="true")
 }
 
 ///|
@@ -1654,7 +1661,7 @@ test "library version" {
   debug_inspect(
     @aurasuisui/indexmap.VERSION,
     content=(
-      #|"0.3.2"
+      #|"0.3.3"
     ),
   )
 }
@@ -1714,22 +1721,30 @@ test "IndexMap get_mut modifies value" {
 ///|
 test "IndexMap get_mut on missing key" {
   let map : @aurasuisui/indexmap.IndexMap[String, Int] = @aurasuisui/indexmap.new()
+  // `None` on a missing key is a no-op.
   map.get_mut("missing", fn(_v) { None })
+  debug_inspect(map.len(), content="0")
+  // `Some(v)` on a missing key inserts it (upsert).
+  map.get_mut("missing", fn(_v) { Some(7) })
+  debug_inspect(map.get("missing"), content="Some(7)")
+  debug_inspect(map.len(), content="1")
 }
 
 ///|
-test "IndexMap get_mut callback re-inserts same key then None preserves value" {
+test "IndexMap get_mut None removes key even if callback re-inserted it" {
   let map = @aurasuisui/indexmap.new()
   map.insert("key", 1) |> ignore
-  // Callback updates via insert(same_key, ...) then returns None.
-  // Before v0.3.2 this clobbered the value to a tombstone (data loss, BUG-001).
+  // Authoritative contract: the callback's return value wins. Returning `None`
+  // removes the key even though the callback re-inserted it as a side effect
+  // (use `Some(v)` to keep a value). This replaces the old BUG-001 "preserve"
+  // band-aid, which had the side effect of breaking plain deletion.
   map.get_mut("key", fn(_v) {
     map.insert("key", 99) |> ignore
     None
   })
-  debug_inspect(map.contains("key"), content="true")
-  debug_inspect(map.get("key"), content="Some(99)")
-  debug_inspect(map.len(), content="1")
+  debug_inspect(map.contains("key"), content="false")
+  debug_inspect(map.get("key"), content="None")
+  debug_inspect(map.len(), content="0")
 }
 
 ///|
@@ -1772,4 +1787,397 @@ test "IndexMap into_array consumes all entries" {
       #|(2, "b")
     ),
   )
+}
+
+// ---------------------------------------------------------------------------
+// Regression tests for the post-verdict correctness fixes (D1–D4) plus the
+// reproduced edge cases the competition review said the suite missed (point 8).
+// ---------------------------------------------------------------------------
+
+///|
+// D1: filling the map purely through the Entry API must trigger resizing and
+// must never hang. Previously VacantEntry::insert skipped the resize gate, so
+// driving the table to full occupancy made the next insert spin forever.
+test "D1 entry API vacant insert resizes past capacity without hanging" {
+  let map : @aurasuisui/indexmap.IndexMap[Int, Int] = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 200 {
+    match map.entry(i) {
+      @aurasuisui/indexmap.Vacant(e) => e.insert(i) |> ignore
+      @aurasuisui/indexmap.Occupied(_) =>
+        @test.fail("expected Vacant for fresh key")
+    }
+    i = i + 1
+  }
+  debug_inspect(map.len(), content="200")
+  debug_inspect(map.capacity() > 16, content="true")
+  debug_inspect(map.get(0), content="Some(0)")
+  debug_inspect(map.get(199), content="Some(199)")
+}
+
+///|
+// D1: an OccupiedEntry handle must stay correct even if the map is resized
+// behind its back. Previously it trusted a cached bucket index that went stale
+// after a resize, returning or overwriting another key's value.
+test "D1 occupied entry stays correct across a resize" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("target", 42) |> ignore
+  match map.entry("target") {
+    @aurasuisui/indexmap.Occupied(o) => {
+      let mut i = 0
+      while i < 100 {
+        map.insert("k\{i}", i) |> ignore // forces several resizes
+        i = i + 1
+      }
+      debug_inspect(o.get(), content="42")
+      let old = o.insert(43)
+      debug_inspect(old, content="42")
+      debug_inspect(map.get("target"), content="Some(43)")
+    }
+    @aurasuisui/indexmap.Vacant(_) => @test.fail("expected Occupied")
+  }
+}
+
+///|
+// D2: plain deletion via get_mut (callback returns None without mutating) must
+// actually delete. The old BUG-001 contains() guard turned this into a no-op.
+test "D2 get_mut None deletes an existing key" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.get_mut("b", fn(_v) { None })
+  debug_inspect(map.contains("b"), content="false")
+  debug_inspect(map.len(), content="2")
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["a", "c"]
+    ),
+  )
+}
+
+///|
+// D2: a callback that removes the key itself then returns None must not
+// double-decrement len or double-count the tombstone.
+test "D2 get_mut callback removes same key then None stays consistent" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.get_mut("a", fn(_v) {
+    map.remove("a") |> ignore
+    None
+  })
+  debug_inspect(map.contains("a"), content="false")
+  debug_inspect(map.len(), content="1")
+  debug_inspect(map.get("b"), content="Some(2)")
+}
+
+///|
+// D2: a callback that removes the key then returns Some re-inserts it cleanly
+// (no ghost entry): the key is iterable and indexable, not just gettable.
+test "D2 get_mut callback removes same key then Some re-inserts cleanly" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.get_mut("a", fn(_v) {
+    map.remove("a") |> ignore
+    Some(99)
+  })
+  debug_inspect(map.get("a"), content="Some(99)")
+  debug_inspect(map.len(), content="2")
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["b", "a"]
+    ),
+  )
+  debug_inspect(map.get_index_of("a"), content="Some(1)")
+}
+
+///|
+// D2: a callback that triggers a resize must not strand the write-back at a
+// stale bucket index (which previously clobbered an unrelated entry).
+test "D2 get_mut survives a callback-triggered resize" {
+  let map = @aurasuisui/indexmap.new() // capacity 16
+  map.insert("a", 1) |> ignore
+  let mut i = 0
+  while i < 11 {
+    map.insert("fill\{i}", i) |> ignore
+    i = i + 1
+  }
+  // len = 12; inserting inside the callback crosses the 0.75 threshold -> resize.
+  map.get_mut("a", fn(_v) {
+    let mut j = 0
+    while j < 20 {
+      map.insert("big\{j}", j) |> ignore
+      j = j + 1
+    }
+    Some(1234)
+  })
+  debug_inspect(map.get("a"), content="Some(1234)")
+  debug_inspect(map.get("big0"), content="Some(0)")
+  debug_inspect(map.get("big19"), content="Some(19)")
+  debug_inspect(map.get("fill0"), content="Some(0)")
+  debug_inspect(map.len(), content="32")
+}
+
+///|
+// D3: to_json must use the raw key strings, not the debug-mangled form
+// (`String("name")`) the old `@debug.to_string(k.to_json())` produced.
+test "D3 to_json uses raw string keys" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("name", 1) |> ignore
+  map.insert("version", 2) |> ignore
+  match map.to_json() {
+    Object(obj) => {
+      // Before the fix these lookups missed (keys were `String("name")`).
+      debug_inspect(obj.get("name") is Some(_), content="true")
+      debug_inspect(obj.get("version") is Some(_), content="true")
+    }
+    _ => @test.fail("expected a JSON object")
+  }
+}
+
+///|
+// D3: to_json with a non-string key type uses the key's Show rendering.
+test "D3 to_json renders non-string keys via Show" {
+  let map : @aurasuisui/indexmap.IndexMap[Int, String] = @aurasuisui/indexmap.new()
+  map.insert(1, "one") |> ignore
+  map.insert(2, "two") |> ignore
+  match map.to_json() {
+    Object(obj) => {
+      debug_inspect(obj.get("1") is Some(_), content="true")
+      debug_inspect(obj.get("2") is Some(_), content="true")
+    }
+    _ => @test.fail("expected a JSON object")
+  }
+}
+
+///|
+// D4: a fresh iterator created after a mutation reflects it and does not
+// spuriously abort. Mid-iteration mutation aborts with a clear message; that
+// abort is not catchable in an expect-test, so it is documented in README
+// Gotcha #5 rather than asserted here.
+test "D4 fresh iterator after mutation works" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  let it1 = map.iter()
+  debug_inspect(it1.collect().length(), content="2")
+  map.insert("c", 3) |> ignore
+  let it2 = map.iter()
+  debug_inspect(it2.collect().length(), content="3")
+}
+
+///|
+// for-in over the keys iterator walks elements in insertion order.
+test "for-in over keys iterates in insertion order" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("x", 1) |> ignore
+  map.insert("y", 2) |> ignore
+  map.insert("z", 3) |> ignore
+  let keys : Array[String] = []
+  for k in map.keys() {
+    keys.push(k)
+  }
+  debug_inspect(
+    keys,
+    content=(
+      #|["x", "y", "z"]
+    ),
+  )
+}
+
+///|
+// swap_remove_index is an order-preserving shift-remove despite the name:
+// survivors keep their relative order; it does NOT swap with the last element.
+test "swap_remove_index preserves insertion order of survivors" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.insert("d", 4) |> ignore
+  map.swap_remove_index(1) |> ignore // remove "b"
+  debug_inspect(map.len(), content="3")
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["a", "c", "d"]
+    ),
+  )
+}
+
+///|
+// from_array with duplicate keys: last value wins, first position kept.
+test "from_array with duplicate keys keeps first position, last value" {
+  let map = @aurasuisui/indexmap.IndexMap::from_array([
+    ("a", 1),
+    ("b", 2),
+    ("a", 3),
+  ])
+  debug_inspect(map.len(), content="2")
+  debug_inspect(map.get("a"), content="Some(3)")
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["a", "b"]
+    ),
+  )
+}
+
+///|
+// Edge keys: empty string, negative int, Bool, Char.
+test "edge keys: empty string, negative int, bool, char" {
+  let s = @aurasuisui/indexmap.new()
+  s.insert("", "empty") |> ignore
+  debug_inspect(
+    s.get(""),
+    content=(
+      #|Some("empty")
+    ),
+  )
+  let n = @aurasuisui/indexmap.new()
+  n.insert(0, "zero") |> ignore
+  n.insert(-1, "neg") |> ignore
+  debug_inspect(
+    n.get(-1),
+    content=(
+      #|Some("neg")
+    ),
+  )
+  let b = @aurasuisui/indexmap.new()
+  b.insert(true, "t") |> ignore
+  b.insert(false, "f") |> ignore
+  debug_inspect(b.len(), content="2")
+  debug_inspect(
+    b.get(false),
+    content=(
+      #|Some("f")
+    ),
+  )
+  let c = @aurasuisui/indexmap.new()
+  c.insert('a', 1) |> ignore
+  debug_inspect(c.get('a'), content="Some(1)")
+}
+
+///|
+// Resize cascade: insert enough to grow 16 -> 32 -> 64 -> 128 -> 256, verifying
+// every entry survives each resize.
+test "resize cascade preserves all entries" {
+  let map : @aurasuisui/indexmap.IndexMap[Int, Int] = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 100 {
+    map.insert(i, i * 2) |> ignore
+    i = i + 1
+  }
+  debug_inspect(map.len(), content="100")
+  debug_inspect(map.capacity() >= 256, content="true")
+  let mut j = 0
+  let mut all_ok = true
+  while j < 100 {
+    if map.get(j) != Some(j * 2) {
+      all_ok = false
+    }
+    j = j + 1
+  }
+  debug_inspect(all_ok, content="true")
+}
+
+///|
+// sort_by_key over a map that contains tombstones (a delete before sorting).
+test "sort_by_key works with tombstones present" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("c", 3) |> ignore
+  map.insert("a", 1) |> ignore
+  map.insert("x", 99) |> ignore
+  map.insert("b", 2) |> ignore
+  map.remove("x") |> ignore // leaves a tombstone
+  map.sort_by_key()
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["a", "b", "c"]
+    ),
+  )
+  debug_inspect(map.len(), content="3")
+}
+
+///|
+// copy() of a map with tombstones preserves only the live entries.
+test "copy with tombstones preserves live entries" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.remove("b") |> ignore
+  let cp = map.copy()
+  debug_inspect(cp.len(), content="2")
+  debug_inspect(
+    cp.keys().collect(),
+    content=(
+      #|["a", "c"]
+    ),
+  )
+  debug_inspect(cp.get("b"), content="None")
+}
+
+///|
+// drain() over a map with tombstones returns only the live entries in order.
+test "drain with tombstones returns live entries in order" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.remove("b") |> ignore
+  let drained = map.drain()
+  debug_inspect(drained.length(), content="2")
+  debug_inspect(map.is_empty(), content="true")
+}
+
+///|
+// retain() over a map with tombstones keeps the matching live entries.
+test "retain with tombstones keeps matching entries" {
+  let map = @aurasuisui/indexmap.new()
+  map.insert("a", 1) |> ignore
+  map.insert("b", 2) |> ignore
+  map.insert("c", 3) |> ignore
+  map.insert("d", 4) |> ignore
+  map.remove("b") |> ignore
+  map.retain(fn(_k, v) { v > 1 })
+  debug_inspect(
+    map.keys().collect(),
+    content=(
+      #|["c", "d"]
+    ),
+  )
+}
+
+///|
+// Mass delete (50%) then verify every survivor is still retrievable.
+test "mass delete half then lookup survivors" {
+  let map : @aurasuisui/indexmap.IndexMap[Int, Int] = @aurasuisui/indexmap.new()
+  let mut i = 0
+  while i < 1000 {
+    map.insert(i, i) |> ignore
+    i = i + 1
+  }
+  let mut j = 0
+  while j < 1000 {
+    if j % 2 == 0 {
+      map.remove(j) |> ignore
+    }
+    j = j + 1
+  }
+  debug_inspect(map.len(), content="500")
+  let mut k = 0
+  let mut ok = true
+  while k < 1000 {
+    let expected = if k % 2 == 0 { None } else { Some(k) }
+    if map.get(k) != expected {
+      ok = false
+    }
+    k = k + 1
+  }
+  debug_inspect(ok, content="true")
 }

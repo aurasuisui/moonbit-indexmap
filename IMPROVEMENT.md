@@ -1,7 +1,8 @@
 # Improvement Plan
 
 > **Status:** This was the sprint checklist for the competition acceptance review
-> (2026-07-04). All P0–P3 items listed below are complete. The project has since
+> (2026-07-04). All P0–P3 items listed below are complete except P1 item 6 (reuse
+> `robin_hood_insert_at` in `rehash`), a low-priority open item. The project has since
 > progressed through v0.3.1 (warning cleanup, `inspect`→`debug_inspect` migration,
 > independent test suite verification) and **v0.3.2** (BUG-001 / WARN-002 / WARN-003
 > fixes from the test-suite Recommendations). For the current roadmap and full
@@ -30,7 +31,7 @@ Based on project evaluation against the MoonBit Open Source Ecosystem Competitio
 
 ---
 
-## 🟡 P1 — Performance ✅ All Done
+## 🟡 P1 — Performance ✅ (item 6 deferred as low-priority)
 
 ### 4. ~~O(1) remove via swap-remove in order array~~ ✅ → reverted to shift-remove
 - [x] Added `mut positions : Map[K, Int]` field to `IndexMap`
@@ -50,12 +51,13 @@ Based on project evaluation against the MoonBit Open Source Ecosystem Competitio
 ### 5. ~~O(1) get_index_of via position map~~ ✅
 - [x] Replaced linear scan with `self.positions[key]`
 
-### 6. Reuse robin_hood_insert_at in rehash
-Lower priority — logic is correct, just duplicated.
+### 6. Reuse robin_hood_insert_at in rehash — OPEN (low priority)
+Lower priority — logic is correct, just duplicated. Not done; kept as a known minor
+duplication (also tracked as CONTRIBUTING Known Issue #7).
 
 ---
 
-## 🟢 P2 — Ecosystem & Polish
+## 🟢 P2 — Ecosystem & Polish ✅ All Done
 
 ### 7. Publish to mooncakes.io ✅
 - [x] Module renamed to `aurasuisui/indexmap` per mooncakes.io naming convention
@@ -65,9 +67,12 @@ Lower priority — logic is correct, just duplicated.
 - [x] Register/login on mooncakes.io
 - [x] Run `moon publish` (v0.2.0 published — Server status: 200 OK)
 
-### 8. Add examples/ directory
+### 8. Add examples/ directory ✅ (now `cmd/`)
 
 Real-world examples help adoption and demonstrate value to judges.
+
+> Since superseded: the examples moved from `examples/*.mbt` snippets to runnable
+> `cmd/` packages (`cmd/config_parse`, `cmd/lru_cache`, `cmd/json_order`).
 
 - [x] `examples/config_parse.mbt` — config file parser with order preservation
 - [x] `examples/lru_cache.mbt` — LRU cache using IndexMap's first/remove/insert
@@ -94,7 +99,8 @@ Real-world examples help adoption and demonstrate value to judges.
 - [x] Add 6 tests for Eq/Hash on IndexSet
 
 ### 12. QuickCheck / Property tests ✅
-- [x] Added 10 property tests for swap-remove invariants
+- [x] Added 10 property tests for swap-remove invariants (later reinterpreted as
+  shift-remove invariants after swap-remove was reverted — see item 4)
 - [x] Tests cover: position consistency, order preservation after remove, reinsert, retain
 - [x] Full `Arbitrary` trait impl — see item 15 below
 

@@ -206,16 +206,26 @@ test "qc: IndexSet subset implies superset" {
 }
 
 ///|
-test "qc: to_json roundtrip preserves count" {
+test "qc: to_json object contains every key verbatim" {
   let maps : Array[@aurasuisui/indexmap.IndexMap[String, Int]] = @quickcheck.samples(
     10,
   )
   let mut i = 0
   while i < maps.length() {
     let map = maps[i]
-    let json = map.to_json()
-    // JSON should be a valid object
-    debug_inspect(json is Object(_), content="true")
+    match map.to_json() {
+      Object(obj) => {
+        // Every key must appear verbatim (raw string), not debug-mangled.
+        let iter = map.keys()
+        while true {
+          match iter.next() {
+            Some(k) => debug_inspect(obj.get(k) is Some(_), content="true")
+            None => break
+          }
+        }
+      }
+      _ => @test.fail("expected a JSON object")
+    }
     i = i + 1
   }
 }

@@ -12,7 +12,7 @@ pub const LOAD_FACTOR_DENOMINATOR : Int = 4
 
 pub const LOAD_FACTOR_NUMERATOR : Int = 3
 
-pub const VERSION : String = "0.3.2"
+pub const VERSION : String = "0.3.3"
 
 pub fn[K : Hash + Eq, V] new() -> IndexMap[K, V]
 
@@ -69,7 +69,7 @@ pub impl[K : Hash + Eq, V] Default for IndexMap[K, V]
 pub impl[K : Hash + Eq, V : Eq] Eq for IndexMap[K, V]
 pub impl[K : Hash + Eq, V : Hash] Hash for IndexMap[K, V]
 pub impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V]
-pub impl[K : ToJson + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V]
+pub impl[K : Show + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V]
 pub impl[K : @debug.Debug + Hash + Eq, V : @debug.Debug] @debug.Debug for IndexMap[K, V]
 pub impl[K : @quickcheck.Arbitrary + Hash + Eq, V : @quickcheck.Arbitrary] @quickcheck.Arbitrary for IndexMap[K, V]
 
@@ -110,10 +110,9 @@ pub struct OccupiedEntry[K, V] {
   map : IndexMap[K, V]
   key : K
   hash : Int
-  bucket_index : Int
 }
-pub fn[K, V] OccupiedEntry::get(Self[K, V]) -> V
-pub fn[K, V] OccupiedEntry::insert(Self[K, V], V) -> V
+pub fn[K : Eq, V] OccupiedEntry::get(Self[K, V]) -> V
+pub fn[K : Eq, V] OccupiedEntry::insert(Self[K, V], V) -> V
 pub fn[K, V] OccupiedEntry::key(Self[K, V]) -> K
 pub fn[K : Hash + Eq, V] OccupiedEntry::remove(Self[K, V]) -> V
 
@@ -121,7 +120,6 @@ pub struct VacantEntry[K, V] {
   map : IndexMap[K, V]
   key : K
   hash : Int
-  bucket_index : Int
 }
 pub fn[K : Hash + Eq, V] VacantEntry::insert(Self[K, V], V) -> V
 pub fn[K, V] VacantEntry::key(Self[K, V]) -> K

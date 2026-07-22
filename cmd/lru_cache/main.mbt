@@ -5,7 +5,7 @@
 // used item is always first in the iteration order.
 //
 // Usage (in your project's moon.mod.json):
-//   { "dependencies": { "aurasuisui/indexmap": "0.2.0" } }
+//   { "dependencies": { "aurasuisui/indexmap": "0.3.3" } }
 
 ///|
 /// A fixed-size LRU cache backed by IndexMap.
