@@ -2,4 +2,6 @@ import {
   "moonbitlang/core/test",
   "moonbitlang/core/quickcheck",
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/bench",
 }

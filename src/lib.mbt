@@ -45,3 +45,22 @@ pub fn[K : Hash + Eq, V] new() -> IndexMap[K, V] {
 pub fn[K : Hash + Eq, V] with_capacity(cap : Int) -> IndexMap[K, V] {
   IndexMap::with_capacity(cap)
 }
+
+///|
+/// Deserialize an IndexMap from a JSON object (String keys, order-preserving).
+/// See `IndexMap::from_json`.
+pub fn[V : FromJson] from_json(
+  json : Json,
+) -> IndexMap[String, V] raise @json.JsonDecodeError {
+  IndexMap::from_json(json)
+}
+
+///|
+/// Deserialize an IndexMap from a JSON object, parsing each key from `String`.
+/// See `IndexMap::from_json_with`.
+pub fn[K : Hash + Eq, V : FromJson] from_json_with(
+  json : Json,
+  parse_key : (String) -> K,
+) -> IndexMap[K, V] raise @json.JsonDecodeError {
+  IndexMap::from_json_with(json, parse_key)
+}

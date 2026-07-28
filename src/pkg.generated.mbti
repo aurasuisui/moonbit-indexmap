@@ -3,6 +3,7 @@ package "aurasuisui/indexmap"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
   "moonbitlang/core/quickcheck",
   "moonbitlang/core/quickcheck/splitmix",
 }
@@ -13,6 +14,10 @@ pub const LOAD_FACTOR_DENOMINATOR : Int = 4
 pub const LOAD_FACTOR_NUMERATOR : Int = 3
 
 pub const VERSION : String = "0.3.3"
+
+pub fn[V : @json.FromJson] from_json(Json) -> IndexMap[String, V] raise @json.JsonDecodeError
+
+pub fn[K : Hash + Eq, V : @json.FromJson] from_json_with(Json, (String) -> K) -> IndexMap[K, V] raise @json.JsonDecodeError
 
 pub fn[K : Hash + Eq, V] new() -> IndexMap[K, V]
 
@@ -39,6 +44,8 @@ pub fn[K : Hash + Eq, V] IndexMap::extend_from_array(Self[K, V], Array[(K, V)]) 
 pub fn[K : Hash + Eq, V] IndexMap::first(Self[K, V]) -> (K, V)?
 pub fn[K : Hash + Eq, V] IndexMap::for_each(Self[K, V], (K, V) -> Unit) -> Unit
 pub fn[K : Hash + Eq, V] IndexMap::from_array(Array[(K, V)]) -> Self[K, V]
+pub fn[V : @json.FromJson] IndexMap::from_json(Json) -> Self[String, V] raise @json.JsonDecodeError
+pub fn[K : Hash + Eq, V : @json.FromJson] IndexMap::from_json_with(Json, (String) -> K) -> Self[K, V] raise @json.JsonDecodeError
 pub fn[K : Hash + Eq, V] IndexMap::get(Self[K, V], K) -> V?
 pub fn[K : Hash + Eq, V] IndexMap::get_full(Self[K, V], K) -> (K, V)?
 pub fn[K : Hash + Eq, V] IndexMap::get_index(Self[K, V], Int) -> (K, V)?

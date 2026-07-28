@@ -2,6 +2,71 @@
 
 All notable changes to moonbit-indexmap will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **`from_json` / `from_json_with` deserialization.** `IndexMap::from_json(json)`
+  decodes a JSON object into an `IndexMap[String, V]` (`V : FromJson`), preserving
+  insertion order (core JSON objects are ordered). Because `Eq` is order-sensitive,
+  `from_json(m.to_json()) == m` is a lossless round-trip for String-keyed maps.
+  `from_json_with(json, parse_key)` parses each object key from `String` into `K`
+  for non-String keys. A non-object JSON value raises `@json.JsonDecodeError`.
+  Package-level `from_json` / `from_json_with` aliases mirror `new`.
+  - Public API addition; `pkg.generated.mbti` updated. Warrants a **minor version
+    bump (0.4.0)** at release.
+
+### Changed
+- Replaced the 14 deprecated multi-trait-bound dot-calls with qualified calls
+  (`Hash::hash`, `Hash::hash_combine`, `Show::output`, `Show::to_string`,
+  `ToJson::to_json`, `Compare::compare`). `moon check --deny-warn` is now clean;
+  no public-signature change (`pkg.generated.mbti` unaffected by this item).
+- Replaced 3 deprecated `to_repr(x)` call sites with `Repr(x)` (`map.mbt`/`set.mbt
+  `Debug` impls); `--deny-warn` clean. Behavior-preserving.
+
+### Changed (tests — reorganization: library minimal, suite strong)
+The library's in-package tests were trimmed to **white-box + library-specific**
+only; black-box robustness tests moved to the separate `indexmap-test-suite`
+repository. Net effect in this repo:
+- **Removed** `src/property_test.mbt` (47 hand-written deterministic invariants
+  — fully subsumed by `model_wbtest.mbt`'s randomized oracle + the suite's
+  stress tests; no coverage lost).
+- **Removed** `src/bench_test.mbt` (36 large-N correctness tests — the model/fuzz
+  streams and the suite's stress tests cover scale). Kept its 7 *unique* tests
+  (IndexMap-vs-builtin-Map parity + benign-key probe bound) as
+  `src/cmp_builtin_test.mbt`.
+- **Moved to `indexmap-test-suite/tests/`** (black-box, `@indexmap.` prefix):
+  `adversarial_test.mbt` (HashDoS), `failfast_panic_test.mbt` (fail-fast abort),
+  `perf_bench_test.mbt` + `perf_gate_test.mbt` (real benchmarks + regression gate).
+
+### Added (tests — RELEASE_TEST_CHECKLIST Tier 1/2)
+- Model / stateful property tests + white-box internal-invariant checks
+  (`src/model_wbtest.mbt`, **stays in-repo** — reads private fields): a naive-array
+  oracle driven by hand-crafted golden sequences, LCG streams, and QuickCheck,
+  asserting step-by-step agreement and all eight CLAUDE.md invariants after every
+  mutation.
+- Op-stream + decoded-stream fuzzing (`src/fuzz_wbtest.mbt`, **stays in-repo** —
+  shares the oracle's private probe helpers).
+- HashDoS / adversarial-collision tests (now in the **suite** as
+  `tests/adversarial_test.mbt`): total and clustered collision floods, with a
+  deterministic assertion that probe distance stays bounded and scales linearly.
+- Fail-fast iterator panic tests (now in the **suite** as
+  `tests/failfast_panic_test.mbt`): in-process assertion of the mid-iteration
+  `abort` via the `test "panic …"` convention.
+- Real benchmarks + scaling-ratio regression gate (now in the **suite** as
+  `tests/perf_bench_test.mbt` + `tests/perf_gate_test.mbt`): `moon bench`
+  statistical timing, plus self-normalizing ratio gates that fail only on
+  superlinear regression.
+- `from_json` round-trip + golden + Rust `indexmap` differential (in the **suite**
+  as `tests/json_roundtrip_test.mbt` + `tests/rust_diff_test.mbt`).
+
+### Known issues
+- **`insert` can duplicate a key** under certain insert/remove interleavings:
+  `robin_hood_find`'s Robin Hood early-stop may miss an existing key that the
+  exhaustive `probe_find` finds, so `insert` returns `None` and appends a
+  duplicate (wrong return value; `len`/`positions` desync). Reproduced by the
+  model/fuzz tests (`moon test -f "*8000*"`). **Must be fixed before release**;
+  the model/fuzz tests stay red until then.
+
 ## [0.3.3] - 2026-07-22
 
 Post-competition quality pass fixing four correctness defects named by the

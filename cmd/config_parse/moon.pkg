@@ -2,6 +2,6 @@ import {
   "aurasuisui/indexmap",
 }
 
-options(
-  "is-main": true,
-)
+// Modern executable-package marker (replaces the deprecated `options("is-main":
+// true)`), so this example builds under the `version: latest` toolchain in CI.
+pkgtype(kind: "executable")

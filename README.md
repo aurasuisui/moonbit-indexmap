@@ -30,7 +30,9 @@ while true {
 - **Index-based access** — `get_index(i)`, `first()`, `last()`, `pop()`
 - **Entry API** — `OccupiedEntry` / `VacantEntry` for in-place manipulation
 - **IndexSet** — ordered hash set with `is_disjoint`, `is_subset`, `is_superset`
-- **JSON support** — `ToJson` trait preserves key order
+- **JSON support** — `ToJson` preserves key order; `from_json` / `from_json_with`
+  deserialize back (order-preserving, so `from_json(m.to_json()) == m` is a lossless
+  round-trip for `String`-keyed maps)
 - **Standard traits** — `Debug`, `Default`, `Show`, `Hash`, `Eq`, `ToJson` for both IndexMap and IndexSet
 - **QuickCheck support** — `Arbitrary` trait for property-based testing
 
@@ -144,13 +146,21 @@ for reproduction details.
 ## Independent Test Report
 
 An independent black-box test suite ([`indexmap-test-suite`](https://github.com/aurasuisui/indexmap-test-suite))
-verified this library against **485 external tests** covering every public API,
-stress up to 100k entries, property-based invariants, and edge-case traps. The
-library itself carries **277 self-tests** (run `moon test`; see
-[CONTRIBUTING.md](CONTRIBUTING.md) for the per-file breakdown).
+covers every public API, stress up to 100k entries, property-based invariants,
+edge-case traps, **plus** (as of the latest reorganization) HashDoS / adversarial
+collision, fail-fast iterator aborts, real benchmarks + a regression gate,
+`from_json` round-trip, and Rust `indexmap` differential tests. The library
+itself keeps the **white-box + library-specific** tests in-repo — the model/oracle
+property test, fuzz harness, and IndexMap-vs-builtin-Map parity (see
+[CLAUDE.md](CLAUDE.md) for the per-file breakdown and
+[`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the full Tier 0–4
+status against the release checklist).
 
-Conclusion: **production-ready for single-threaded use.** Known caveats are
-documented in the [Gotchas](#gotchas) section above.
+> **Status caveat:** the `from_json` API addition and test-suite reorganization
+> described here are **unreleased** (VERSION is still `0.3.3`). See
+> [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` and the duplicate-key insert bug
+> note in [`docs/BUG-insert-duplicate-key.md`](docs/BUG-insert-duplicate-key.md)
+> before relying on this state.
 
 ## Examples
 
@@ -160,30 +170,28 @@ The example packages live in [`cmd/`](cmd/):
 - `cmd/config_parse` — order-preserving config parser
 - `cmd/json_order` — `ToJson` key ordering
 
-> **Note (v0.3.2):** the `cmd/*` example packages are currently **excluded from the
-> workspace** (`moon.work` lists only `.`) so that the library's CI pipeline
-> (`moon fmt --check` / `moon check` / `moon info && git diff --exit-code` / `moon test` /
-> `moon build`) runs on the CI `latest` toolchain without being tripped up by
-> example-package main declaration syntax.
-> To run an example, temporarily re-add the relevant `cmd/<name>` to `members` in
-> `moon.work` (or use a separately-configured build toolchain) and resolve the
-> `aurasuisui/indexmap` dependency, then `moon run cmd/<name>`. Source remains in `cmd/`
-> for reference.
+> **Note:** the `cmd/*` example packages stay out of `moon.work` (they import
+> the *published* `aurasuisui/indexmap`, smoke-testing the user-facing install
+> path) but use `pkgtype(kind: "executable")` (migrated off the deprecated
+> `options("is-main")`), so the CI `examples` job compiles and runs each one
+> against the published version. To run one locally: `cd cmd/<name> && moon run .`.
 
 ## Development
 
 ```bash
-moon check   # Type check (14 expected [0083] deprecation warnings, 0 errors)
-moon test    # Run all tests
-moon fmt     # Format code
+moon check            # Type check (0 warnings, 0 errors; --deny-warn clean)
+moon test             # Run all in-package tests (white-box + library-specific)
+moon test --target <t># t = wasm-gc | wasm | js | native (CI tests all four)
+moon fmt              # Format code
+moon bench -p aurasuisui/indexmap   # Statistical benchmarks
 ```
 
-`moon check` currently reports 14 `[0083]` deprecation warnings (toolchain
-≥ 0.1.20260713 flags method calls on multi-trait-bound type parameters, e.g.
-`key.hash()`). These are intentional and not fixed; CI runs `moon check` without
-`--deny-warn`, so they do not fail the build.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for project layout, roadmap, and contribution guidelines.
+CI: `check` job (fmt / check --deny-warn / mbti drift) + a `target × mode` test
+matrix + an `examples` job + a `bench` job. The black-box robustness battery
+(HashDoS, fail-fast, perf, Rust differential, JSON round-trip) lives in
+[`indexmap-test-suite`](https://github.com/aurasuisui/indexmap-test-suite). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for project layout, roadmap, and contribution
+guidelines.
 
 ## License
 

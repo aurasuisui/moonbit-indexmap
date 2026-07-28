@@ -272,7 +272,7 @@ fn[K : Hash + Eq, V] IndexMap::rehash(
   let mut pos = 0
   while pos < self.order.length() {
     let key = self.order[pos]
-    let (old_idx, found) = self.probe_find(key, key.hash())
+    let (old_idx, found) = self.probe_find(key, Hash::hash(key))
     if found {
       match self.buckets[old_idx] {
         Some(entry) => {
@@ -427,7 +427,7 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
   key : K,
   value : V,
 ) -> V? {
-  let hash = key.hash()
+  let hash = Hash::hash(key)
   self.version = self.version + 1
   if should_resize_impl(self.len + self.tombstone_count, self.buckets.length()) {
     self.resize(self.buckets.length() * 2)
@@ -475,7 +475,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
   key : K,
   f : (V?) -> V?,
 ) -> Unit {
-  let hash = key.hash()
+  let hash = Hash::hash(key)
   let (idx, found) = self.probe_find(key, hash)
   // Snapshot the current value BEFORE the callback runs; the callback may mutate
   // the map, so `idx` must not be reused afterwards.
@@ -496,7 +496,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
 ///|
 /// Get a value associated with `key`.
 pub fn[K : Hash + Eq, V] IndexMap::get(self : IndexMap[K, V], key : K) -> V? {
-  let hash = key.hash()
+  let hash = Hash::hash(key)
   let (idx, found) = self.probe_find(key, hash)
   if found {
     match self.buckets[idx] {
@@ -511,7 +511,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get(self : IndexMap[K, V], key : K) -> V? {
 ///|
 /// Remove a key from the map, returning the value if it was present.
 pub fn[K : Hash + Eq, V] IndexMap::remove(self : IndexMap[K, V], key : K) -> V? {
-  let hash = key.hash()
+  let hash = Hash::hash(key)
   let (idx, found) = self.probe_find(key, hash)
   if !found {
     return None
@@ -545,7 +545,7 @@ pub fn[K : Hash + Eq, V] IndexMap::contains(
   self : IndexMap[K, V],
   key : K,
 ) -> Bool {
-  let (_, found) = self.probe_find(key, key.hash())
+  let (_, found) = self.probe_find(key, Hash::hash(key))
   found
 }
 
@@ -624,7 +624,7 @@ pub fn[K : Hash + Eq, V] IndexMap::entry(
   self : IndexMap[K, V],
   key : K,
 ) -> EntryView[K, V] {
-  let hash = key.hash()
+  let hash = Hash::hash(key)
   let (_, found) = self.robin_hood_find(key, hash)
   if found {
     Occupied({ map: self, key, hash })
@@ -980,7 +980,7 @@ pub fn[K : Hash + Eq + Compare, V] IndexMap::sort_by_key(
   self : IndexMap[K, V],
 ) -> Unit {
   let entries = self.iter().collect()
-  entries.sort_by(fn(a, b) { a.0.compare(b.0) })
+  entries.sort_by(fn(a, b) { Compare::compare(a.0, b.0) })
   self.version = self.version + 1
   self.order = []
   self.positions = Map([])
@@ -1081,7 +1081,7 @@ pub impl[K : Show + Hash + Eq, V : Show] Show for IndexMap[K, V] with fn output(
         if !first {
           logger.write_string(", ")
         }
-        k.output(logger)
+        Show::output(k, logger)
         logger.write_string(": ")
         v.output(logger)
         first = false
@@ -1101,7 +1101,7 @@ pub impl[K : Debug + Hash + Eq, V : Debug] Debug for IndexMap[K, V] with fn to_r
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => entries.push((to_repr(k), to_repr(v)))
+      Some((k, v)) => entries.push((Repr(k), Repr(v)))
       None => break
     }
   }
@@ -1118,7 +1118,7 @@ pub impl[K : Hash + Eq, V : Hash] Hash for IndexMap[K, V] with fn hash_combine(
   while true {
     match iter.next() {
       Some((k, v)) => {
-        k.hash_combine(hasher)
+        Hash::hash_combine(k, hasher)
         v.hash_combine(hasher)
       }
       None => break
@@ -1159,11 +1159,50 @@ pub impl[K : Show + Hash + Eq, V : ToJson] ToJson for IndexMap[K, V] with fn to_
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some((k, v)) => obj[k.to_string()] = v.to_json()
+      Some((k, v)) => obj[Show::to_string(k)] = v.to_json()
       None => break
     }
   }
   Json::object(obj)
+}
+
+// ---------------------------------------------------------------------------
+// Deserialization (from_json)
+// ---------------------------------------------------------------------------
+
+///|
+/// Deserialize an `IndexMap` from a JSON object. Object keys become `String`
+/// keys; **insertion order is preserved** (core JSON objects are ordered), so
+/// for a `String`-keyed map `from_json(m.to_json()) == m` holds exactly — the
+/// strongest round-trip guarantee, since `Eq` is order-sensitive.
+///
+/// Non-`String` keys are rendered by `to_json` via `Show` and are not generally
+/// parseable back; use `from_json_with` to supply a key parser for those.
+/// Duplicate JSON keys follow core `Map` semantics (last wins).
+pub fn[V : FromJson] IndexMap::from_json(
+  json : Json,
+) -> IndexMap[String, V] raise @json.JsonDecodeError {
+  let obj : Map[String, V] = @json.from_json(json)
+  let result : IndexMap[String, V] = IndexMap::new()
+  for k, v in obj {
+    result.insert(k, v) |> ignore
+  }
+  result
+}
+
+///|
+/// Like `from_json`, but parse each JSON object key from `String` into `K`
+/// (e.g. integer keys). Insertion order is preserved.
+pub fn[K : Hash + Eq, V : FromJson] IndexMap::from_json_with(
+  json : Json,
+  parse_key : (String) -> K,
+) -> IndexMap[K, V] raise @json.JsonDecodeError {
+  let obj : Map[String, V] = @json.from_json(json)
+  let result : IndexMap[K, V] = IndexMap::new()
+  for k, v in obj {
+    result.insert(parse_key(k), v) |> ignore
+  }
+  result
 }
 
 // ---------------------------------------------------------------------------

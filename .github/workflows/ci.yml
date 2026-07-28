@@ -7,7 +7,8 @@ on:
     branches: [main, master]
 
 jobs:
-  check-and-test:
+  # Pre-flight gates that need only run once (not per backend).
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,16 +21,91 @@ jobs:
       - name: Format check
         run: moon fmt --check
 
-      - name: Type check
-        run: moon check
+      - name: Type check (warnings are errors)
+        run: moon check --deny-warn
 
       - name: Interface check (mbti up-to-date)
         run: |
           moon info
           git diff --exit-code
 
-      - name: Run tests
-        run: moon test
+  # Cross-backend / cross-mode test + build matrix.
+  test:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      # One flaky/unsupported cell must not cancel the others.
+      fail-fast: false
+      matrix:
+        target: [wasm-gc, wasm, js, native]
+        mode: [debug, release]
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build
-        run: moon build
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+        with:
+          version: latest
+
+      # The native backend compiles via a system C toolchain.
+      - name: Install C toolchain (native backend)
+        if: matrix.target == 'native'
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Test (${{ matrix.target }}, ${{ matrix.mode }})
+        run: |
+          FLAGS="--target ${{ matrix.target }}"
+          if [ "${{ matrix.mode }}" = "release" ]; then FLAGS="$FLAGS --release"; fi
+          moon test $FLAGS
+
+      - name: Build (${{ matrix.target }}, ${{ matrix.mode }})
+        run: |
+          FLAGS="--target ${{ matrix.target }}"
+          if [ "${{ matrix.mode }}" = "release" ]; then FLAGS="$FLAGS --release"; fi
+          moon build $FLAGS
+
+  # Compile and run each cmd/ example against the published library
+  # (smoke-tests the user-facing install path + example correctness).
+  examples:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+        with:
+          version: latest
+
+      - name: Check and run each example
+        run: |
+          for d in cmd/*/; do
+            echo "::group::$d"
+            (cd "$d" && moon check && moon run .)
+            echo "::endgroup::"
+          done
+
+  # Benchmarks: statistical timing report (moon bench). The scaling-ratio
+  # regression gate (perf-gate*) already runs as part of `moon test` above.
+  bench:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+        with:
+          version: latest
+
+      - name: Install C toolchain (native backend)
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Run benchmarks (release, native)
+        run: moon bench -p aurasuisui/indexmap --release --target native | tee bench-report.txt
+
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-report
+          path: bench-report.txt

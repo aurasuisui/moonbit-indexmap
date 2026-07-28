@@ -237,7 +237,7 @@ pub impl[K : Show + Hash + Eq] Show for IndexSet[K] with fn output(self, logger)
         if !first {
           logger.write_string(", ")
         }
-        k.output(logger)
+        Show::output(k, logger)
         first = false
       }
       None => break
@@ -253,7 +253,7 @@ pub impl[K : Debug + Hash + Eq] Debug for IndexSet[K] with fn to_repr(self) {
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some(k) => elements.push(to_repr(k))
+      Some(k) => elements.push(Repr(k))
       None => break
     }
   }
@@ -267,7 +267,7 @@ pub impl[K : ToJson + Hash + Eq] ToJson for IndexSet[K] with fn to_json(self) {
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some(k) => arr.push(k.to_json())
+      Some(k) => arr.push(ToJson::to_json(k))
       None => break
     }
   }
@@ -298,7 +298,7 @@ pub impl[K : Hash + Eq] Hash for IndexSet[K] with fn hash_combine(self, hasher) 
   let iter = self.iter()
   while true {
     match iter.next() {
-      Some(k) => k.hash_combine(hasher)
+      Some(k) => Hash::hash_combine(k, hasher)
       None => break
     }
   }

@@ -5,16 +5,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build / Test / Lint
 
 ```bash
-moon check                    # Type check (expect 14 [0083] warnings, 0 errors)
-moon test                     # Run all 277 tests
-moon test --test-filter "pattern"  # Run matching tests (use --test-filter, NOT -f)
+moon check                    # Type check (0 warnings, 0 errors; --deny-warn clean)
+moon test                     # Run all tests (325 = 322 green + 3 red bug-markers)
+moon test -f "pattern"        # Run matching tests (glob via -f/--filter)
 moon fmt --check              # Format check (CI gate)
 moon fmt                      # Auto-format
 moon info                     # Regenerate pkg.generated.mbti
 moon build                    # Build
+moon test --target <t>        # t = wasm-gc | wasm | js | native (CI tests all four)
+moon bench -p aurasuisui/indexmap   # Statistical benchmarks (perf_bench_test.mbt)
 ```
 
-The CI pipeline (`.github/workflows/ci.yml`) runs these in order: `moon fmt --check` → `moon check` → `moon info && git diff --exit-code` → `moon test` → `moon build`. The toolchain used is `version: latest` (via `hustcer/setup-moonbit@v1`). CI does **not** use `--deny-warn`, so `moon check` warnings are non-blocking.
+The CI pipeline (`.github/workflows/ci.yml`): a `check` job runs `moon fmt --check` →
+`moon check --deny-warn` → `moon info && git diff --exit-code`; a `test` job runs
+`moon test` + `moon build` across a `target ∈ {wasm-gc, wasm, js, native} × mode ∈
+{debug, release}` matrix (native installs `gcc`); an `examples` job compiles and runs
+each `cmd/*` example; a `bench` job runs `moon bench --release --target native` and
+uploads the report. The scaling-ratio performance regression gate (`perf-gate*`) runs
+as part of `moon test`. Toolchain is `version: latest` (via `hustcer/setup-moonbit@v1`).
 
 ## Architecture
 
@@ -43,18 +51,21 @@ Key constants: `MIN_CAPACITY = 16`, load factor = 3/4 (0.75), `TOMBSTONE_HASH = 
 
 | File | Purpose |
 |------|---------|
-| `src/map.mbt` | `IndexMap[K,V]` — all core logic: hash table, insertion, deletion, iteration, Entry API, sorting |
+| `src/map.mbt` | `IndexMap[K,V]` — all core logic: hash table, insertion, deletion, iteration, Entry API, sorting, `from_json` |
 | `src/set.mbt` | `IndexSet[K]` — thin wrapper over `IndexMap[K, Unit]` |
 | `src/hash.mbt` | Shared constants (`LOAD_FACTOR_NUMERATOR`, `LOAD_FACTOR_DENOMINATOR`) |
-| `src/lib.mbt` | Public API re-exports (`new()`, `with_capacity()`) + `VERSION` constant |
-| `src/moon.pkg` | Package config — imports `moonbitlang/core/test`, `quickcheck`, `debug` |
+| `src/lib.mbt` | Public API re-exports (`new`, `with_capacity`, `from_json`, `from_json_with`) + `VERSION` constant |
+| `src/moon.pkg` | Package config — imports `moonbitlang/core/{test,quickcheck,debug,json,bench}` |
 | `src/pkg.generated.mbti` | Auto-generated public interface (CI-tracked via `moon info && git diff --exit-code`) |
-| `src/map_test.mbt` | 131 black-box tests for IndexMap |
-| `src/set_test.mbt` | 52 black-box tests for IndexSet |
-| `src/property_test.mbt` | 47 invariant/property tests |
-| `src/bench_test.mbt` | 36 correctness-under-load tests (5k-10k entries) |
+| `src/map_test.mbt` | 131 black-box API/edge tests for IndexMap |
+| `src/set_test.mbt` | 52 black-box API tests for IndexSet |
 | `src/arbitrary_test.mbt` | 11 QuickCheck property tests |
-| `cmd/*/` | Example packages (lru_cache, config_parse, json_order) — **excluded from `moon.work`** |
+| `src/cmp_builtin_test.mbt` | 7 IndexMap-vs-builtin-Map parity + benign-key probe bound tests |
+| `src/model_wbtest.mbt` | WHITE-BOX model/oracle property test + 8 internal invariants (`_wbtest` reads private fields); holds the duplicate-key bug regression markers |
+| `src/fuzz_wbtest.mbt` | WHITE-BOX op-stream/int-stream fuzz (shares the model oracle); holds a duplicate-key bug regression marker |
+| `cmd/*/` | Example packages (lru_cache, config_parse, json_order) — stay out of `moon.work`; compiled and run by the `examples` CI job |
+
+> **Black-box robustness suites (HashDoS, fail-fast abort, perf benchmarks, Rust differential, JSON round-trip) live in the separate `indexmap-test-suite` repository** (走向 1: library holds only white-box + library-specific tests; the suite holds the black-box robustness battery). `cmd/*` examples import the *published* `aurasuisui/indexmap`.
 
 ## Invariants That Must Hold
 
@@ -88,8 +99,8 @@ test "descriptive name in english" {
 
 ## Known Decisions
 
-- **14 `[0083]` warnings (multi-trait-bound dot-call deprecation) are intentionally not fixed.** The fix (qualified calls like `Hash::hash(key)`) was written then reverted per user decision. CI passes without `--deny-warn`.
-- **`cmd/*` packages are excluded from `moon.work`** because their `options("is-main")` syntax conflicts with CI's `version: latest` toolchain. Source remains for reference.
+- **The 14 `[0083]` warnings (multi-trait-bound dot-call deprecation) are fixed** via qualified calls (`Hash::hash(key)`, `Hash::hash_combine(k, hasher)`, `Show::output(k, logger)`, `Show::to_string(k)`, `ToJson::to_json(k)`, `Compare::compare(a, b)`). `moon check --deny-warn` is clean; CI uses `--deny-warn`.
+- **`cmd/*` packages stay out of `moon.work`** (they import the *published* `aurasuisui/indexmap`, smoke-testing the user-facing install path) but now use `pkgtype(kind: "executable")` (migrated off the deprecated `options("is-main")`) and are compiled + run by the CI `examples` job (`for d in cmd/*/; do (cd $d && moon check && moon run .); done`).
 - **`swap_remove_index` is O(n), not O(1).** Despite the name (kept for Rust API compat), it delegates to the order-preserving `remove` path.
 - **`Eq` and `Hash` are insertion-order-sensitive.** Two maps with same entries in different order are not equal. (The built-in `Map`'s `Eq` is order-independent; IndexMap's is not.)
 - **`get_mut` return value is authoritative (v0.3.3).** `Some(v)` upserts, `None` removes — even if the callback re-inserted the key. The v0.3.2 "preserve re-insert" behavior was removed because it broke plain deletion.
