@@ -64,8 +64,10 @@ jobs:
           if [ "${{ matrix.mode }}" = "release" ]; then FLAGS="$FLAGS --release"; fi
           moon build $FLAGS
 
-  # Compile and run each cmd/ example against the published library
-  # (smoke-tests the user-facing install path + example correctness).
+  # Compile and run each cmd/ example against the LOCAL library. cmd/* are
+  # workspace members (see moon.work), resolved via the workspace rather than
+  # the mooncakes registry — so this job is registry-independent. The `check`
+  # job already type-checks them; this job RUNS them to verify runtime behavior.
   examples:
     needs: check
     runs-on: ubuntu-latest
@@ -77,35 +79,11 @@ jobs:
         with:
           version: latest
 
-      - name: Check and run each example
+      - name: Run each example (local library via workspace)
         run: |
-          for d in cmd/*/; do
-            echo "::group::$d"
-            (cd "$d" && moon check && moon run .)
+          set -e
+          for d in lru_cache config_parse json_order; do
+            echo "::group::cmd/$d"
+            moon run "cmd/$d"
             echo "::endgroup::"
           done
-
-  # Benchmarks: statistical timing report (moon bench). The scaling-ratio
-  # regression gate (perf-gate*) already runs as part of `moon test` above.
-  bench:
-    needs: check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup MoonBit
-        uses: hustcer/setup-moonbit@v1
-        with:
-          version: latest
-
-      - name: Install C toolchain (native backend)
-        run: sudo apt-get update && sudo apt-get install -y gcc
-
-      - name: Run benchmarks (release, native)
-        run: moon bench -p aurasuisui/indexmap --release --target native | tee bench-report.txt
-
-      - name: Upload benchmark report
-        uses: actions/upload-artifact@v4
-        with:
-          name: bench-report
-          path: bench-report.txt

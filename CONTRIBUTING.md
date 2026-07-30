@@ -38,7 +38,7 @@ moon fmt     # Format code
 │   ├── RELEASE_CHECKLIST.md  # Per-tier release-test status (the release gate)
 │   └── BUG-insert-duplicate-key.md  # Duplicate-key insert defect (blocking, unreleased)
 ├── .github/workflows/ci.yml  # check + target×mode matrix + examples + bench
-├── moon.work             # Workspace members (just `.`; cmd/* stay out, use pkgtype)
+├── moon.work             # Workspace members: `.` + cmd/* (examples resolve local lib)
 ├── README.md
 ├── CHANGELOG.md
 ├── IMPROVEMENT.md        # Historical sprint checklist (competition acceptance)
@@ -353,8 +353,8 @@ The rehash function has its own copy of the Robin Hood insertion loop instead of
 - [x] Model/stateful property test + white-box invariants (`model_wbtest.mbt`); op-stream/int-stream fuzz (`fuzz_wbtest.mbt`)
 - [x] HashDoS / adversarial collision tests; fail-fast iterator panic tests; real `moon bench` benchmarks + scaling-ratio regression gate ( THESE live in `indexmap-test-suite` now)
 - [x] `from_json` round-trip + golden; Rust `indexmap` differential (replay + generator) — in `indexmap-test-suite`
-- [x] CI hardened: `moon check --deny-warn` + `target × mode` matrix + `examples` job + `bench` job
-- [x] `cmd/*` migrated to `pkgtype(kind: "executable")`; examples compile + run in CI
+- [x] CI hardened: `moon check --deny-warn` + `target × mode` matrix + `examples` job (statistical `bench` job moved to the suite CI, since `perf_bench_test.mbt` now lives there)
+- [x] `cmd/*` migrated to `pkgtype(kind: "executable")` **and re-added to `moon.work`** (the old `options("is-main")` / `version: latest` conflict is resolved by `pkgtype`); examples now resolve the **local** library (registry-independent) and run in the `examples` CI job — fixes the CI failure where `cmd/*` couldn't resolve the unpublished package from mooncakes
 - [x] Test reorganization (走向 1: library minimal + suite strong): dropped `property_test.mbt`/`bench_test.mbt` from the library; moved black-box robustness tests to `indexmap-test-suite`
 - [ ] **BLOCKING:** `insert` can duplicate an existing key under certain insert/remove interleavings (`robin_hood_find` early-stop misses a key the exhaustive `probe_find` finds) — full report in [`docs/BUG-insert-duplicate-key.md`](docs/BUG-insert-duplicate-key.md); model/fuzz tests stay red as regression markers until fixed
 - [ ] Fix the duplicate-key bug, then bump VERSION/moon.mod to `0.4.0`, update the VERSION assertions in `map_test`/suite `stress_test`, regenerate `pkg.generated.mbti`, run `docs/RELEASE_CHECKLIST.md`, and publish to mooncakes.io

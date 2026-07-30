@@ -38,6 +38,17 @@ repository. Net effect in this repo:
   `adversarial_test.mbt` (HashDoS), `failfast_panic_test.mbt` (fail-fast abort),
   `perf_bench_test.mbt` + `perf_gate_test.mbt` (real benchmarks + regression gate).
 
+### Changed (CI)
+- CI reworked into `check` (`fmt --check` / `check --deny-warn` / mbti drift) +
+  a `target × mode` matrix (`wasm-gc`/`wasm`/`js`/`native` × `debug`/`release`)
+  + an `examples` job. The statistical **bench job moved to the suite CI**
+  (since `perf_bench_test.mbt` now lives in `indexmap-test-suite`).
+- `cmd/*` re-added to `moon.work` (the `options("is-main")` / `version: latest`
+  conflict is resolved by `pkgtype(kind: "executable")`). The `examples` job now
+  runs them against the **local** library via `moon run cmd/<name>` —
+  registry-independent. This fixes the CI failure where `cmd/*` could not resolve
+  the (unpublished) package from mooncakes.
+
 ### Added (tests — RELEASE_TEST_CHECKLIST Tier 1/2)
 - Model / stateful property tests + white-box internal-invariant checks
   (`src/model_wbtest.mbt`, **stays in-repo** — reads private fields): a naive-array

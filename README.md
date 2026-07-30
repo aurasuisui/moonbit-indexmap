@@ -170,11 +170,14 @@ The example packages live in [`cmd/`](cmd/):
 - `cmd/config_parse` — order-preserving config parser
 - `cmd/json_order` — `ToJson` key ordering
 
-> **Note:** the `cmd/*` example packages stay out of `moon.work` (they import
-> the *published* `aurasuisui/indexmap`, smoke-testing the user-facing install
-> path) but use `pkgtype(kind: "executable")` (migrated off the deprecated
-> `options("is-main")`), so the CI `examples` job compiles and runs each one
-> against the published version. To run one locally: `cd cmd/<name> && moon run .`.
+> **Note:** the `cmd/*` example packages are **workspace members** (listed in
+> `moon.work`) and use `pkgtype(kind: "executable")` (migrated off the deprecated
+> `options("is-main")`). Being in the workspace, they resolve `aurasuisui/indexmap`
+> to the **local source** — so they're checked/formatted by the root `moon check`
+> / `moon fmt` and run by the CI `examples` job **without depending on the
+> mooncakes registry** (the historical reason they were excluded — the
+> `options("is-main")` / `version: latest` conflict — is resolved by `pkgtype`).
+> To run one locally: `moon run cmd/<name>` from the repo root.
 
 ## Development
 

@@ -63,9 +63,9 @@ Key constants: `MIN_CAPACITY = 16`, load factor = 3/4 (0.75), `TOMBSTONE_HASH = 
 | `src/cmp_builtin_test.mbt` | 7 IndexMap-vs-builtin-Map parity + benign-key probe bound tests |
 | `src/model_wbtest.mbt` | WHITE-BOX model/oracle property test + 8 internal invariants (`_wbtest` reads private fields); holds the duplicate-key bug regression markers |
 | `src/fuzz_wbtest.mbt` | WHITE-BOX op-stream/int-stream fuzz (shares the model oracle); holds a duplicate-key bug regression marker |
-| `cmd/*/` | Example packages (lru_cache, config_parse, json_order) — stay out of `moon.work`; compiled and run by the `examples` CI job |
+| `cmd/*/` | Example packages (lru_cache, config_parse, json_order) — **workspace members** (in `moon.work`, `pkgtype(kind: "executable")`); resolve the local library; run by the `examples` CI job via `moon run cmd/<name>` |
 
-> **Black-box robustness suites (HashDoS, fail-fast abort, perf benchmarks, Rust differential, JSON round-trip) live in the separate `indexmap-test-suite` repository** (走向 1: library holds only white-box + library-specific tests; the suite holds the black-box robustness battery). `cmd/*` examples import the *published* `aurasuisui/indexmap`.
+> **Black-box robustness suites (HashDoS, fail-fast abort, perf benchmarks, Rust differential, JSON round-trip) live in the separate `indexmap-test-suite` repository** (走向 1: library holds only white-box + library-specific tests; the suite holds the black-box robustness battery). `cmd/*` examples resolve the **local** library through the workspace (registry-independent).
 
 ## Invariants That Must Hold
 
@@ -100,7 +100,7 @@ test "descriptive name in english" {
 ## Known Decisions
 
 - **The 14 `[0083]` warnings (multi-trait-bound dot-call deprecation) are fixed** via qualified calls (`Hash::hash(key)`, `Hash::hash_combine(k, hasher)`, `Show::output(k, logger)`, `Show::to_string(k)`, `ToJson::to_json(k)`, `Compare::compare(a, b)`). `moon check --deny-warn` is clean; CI uses `--deny-warn`.
-- **`cmd/*` packages stay out of `moon.work`** (they import the *published* `aurasuisui/indexmap`, smoke-testing the user-facing install path) but now use `pkgtype(kind: "executable")` (migrated off the deprecated `options("is-main")`) and are compiled + run by the CI `examples` job (`for d in cmd/*/; do (cd $d && moon check && moon run .); done`).
+- **`cmd/*` packages are workspace members** (in `moon.work`, `pkgtype(kind: "executable")` — migrated off the deprecated `options("is-main")` which had caused the historical `version: latest` conflict). They resolve `aurasuisui/indexmap` to the **local source** (registry-independent), so the root `moon check`/`moon fmt`/`moon test` cover them and the CI `examples` job runs each via `moon run cmd/<name>`.
 - **`swap_remove_index` is O(n), not O(1).** Despite the name (kept for Rust API compat), it delegates to the order-preserving `remove` path.
 - **`Eq` and `Hash` are insertion-order-sensitive.** Two maps with same entries in different order are not equal. (The built-in `Map`'s `Eq` is order-independent; IndexMap's is not.)
 - **`get_mut` return value is authoritative (v0.3.3).** `Some(v)` upserts, `None` removes — even if the callback re-inserted the key. The v0.3.2 "preserve re-insert" behavior was removed because it broke plain deletion.
