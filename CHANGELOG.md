@@ -4,6 +4,8 @@ All notable changes to moonbit-indexmap will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-01
+
 ### Added
 - **`from_json` / `from_json_with` deserialization.** `IndexMap::from_json(json)`
   decodes a JSON object into an `IndexMap[String, V]` (`V : FromJson`), preserving

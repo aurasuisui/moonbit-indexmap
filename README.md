@@ -41,7 +41,7 @@ while true {
 Add to `moon.mod`:
 
 ```json
-{ "dependencies": { "aurasuisui/indexmap": "0.3.3" } }
+{ "dependencies": { "aurasuisui/indexmap": "0.4.0" } }
 ```
 
 Or clone directly:
@@ -158,9 +158,9 @@ property test, fuzz harness, and IndexMap-vs-builtin-Map parity (see
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the full Tier 0–4
 status against the release checklist).
 
-> **Status caveat:** the `from_json` API addition, deletion-engine rewrite and
-> test-suite reorganization described here are **unreleased** (VERSION is still
-> `0.3.3`). See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for release status.
+> **Released:** the `from_json` API addition, the deletion-engine rewrite
+> (backward-shift, tombstone-free) and the test-suite reorganization described
+> here shipped in **v0.4.0**. See [CHANGELOG.md](CHANGELOG.md) `[0.4.0]`.
 
 ## Examples
 

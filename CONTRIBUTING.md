@@ -350,8 +350,8 @@ Both normal insertion and `rehash` now call `robin_hood_insert_into`.
 - [x] Iterators made truly fail-fast (mutation `version` counter + clear abort)
 - [x] Regression tests for all four fixes; vacuous/misleading tests corrected; reproduced edge cases ported (255 → 277 tests at the v0.3.3 milestone)
 
-### [Unreleased] — RELEASE_TEST_CHECKLIST Tier 1/2/3 coverage + test reorganization
-- [x] **`from_json` / `from_json_with`** deserialization (public API, warrants **0.4.0** at release — VERSION/moon.mod still `0.3.3`, **not yet bumped**)
+### v0.4.0 — RELEASE_TEST_CHECKLIST Tier 1/2/3 coverage + test reorganization + duplicate-key fix ✅
+- [x] **`from_json` / `from_json_with`** deserialization (new public API — the minor-version bump to `0.4.0`)
 - [x] `[0083]` deprecation warnings fixed via qualified trait calls; `moon check --deny-warn` clean (was 14 warnings); `to_repr` → `Repr` cleanup (was 3 `[0020]` errors under `--deny-warn`)
 - [x] Model/stateful property test + white-box invariants (`model_wbtest.mbt`); op-stream/int-stream fuzz (`fuzz_wbtest.mbt`)
 - [x] HashDoS / adversarial collision tests; fail-fast iterator panic tests; real `moon bench` benchmarks + scaling-ratio regression gate ( THESE live in `indexmap-test-suite` now)
@@ -360,9 +360,9 @@ Both normal insertion and `rehash` now call `robin_hood_insert_into`.
 - [x] `cmd/*` migrated to `pkgtype(kind: "executable")` **and re-added to `moon.work`** (the old `options("is-main")` / `version: latest` conflict is resolved by `pkgtype`); examples now resolve the **local** library (registry-independent) and run in the `examples` CI job — fixes the CI failure where `cmd/*` couldn't resolve the unpublished package from mooncakes
 - [x] Test reorganization (走向 1: library minimal + suite strong): dropped `property_test.mbt`/`bench_test.mbt` from the library; moved black-box robustness tests to `indexmap-test-suite`
 - [x] Duplicate-key corruption repaired: tombstones were replaced by backward-shift deletion, and all key-based operations now share exhaustive `locate`; see [`docs/BUG-insert-duplicate-key.md`](docs/BUG-insert-duplicate-key.md)
-- [ ] Before the next release, decide whether to bump VERSION/moon.mod to `0.4.0` for the unreleased `from_json` API, update VERSION assertions, regenerate `pkg.generated.mbti`, run `docs/RELEASE_CHECKLIST.md`, and publish to mooncakes.io
+- [x] Released as `0.4.0`: VERSION/moon.mod bumped, VERSION assertions updated, `pkg.generated.mbti` regenerated, `docs/RELEASE_CHECKLIST.md` re-run green (`moon publish` to mooncakes.io is the final manual step)
 
-See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for the full list.
+See [CHANGELOG.md](CHANGELOG.md) `[0.4.0]` for the full list.
 
 ## License
 

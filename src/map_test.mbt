@@ -1661,7 +1661,7 @@ test "library version" {
   debug_inspect(
     @aurasuisui/indexmap.VERSION,
     content=(
-      #|"0.3.3"
+      #|"0.4.0"
     ),
   )
 }

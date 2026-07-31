@@ -13,7 +13,7 @@ pub const LOAD_FACTOR_DENOMINATOR : Int = 4
 
 pub const LOAD_FACTOR_NUMERATOR : Int = 3
 
-pub const VERSION : String = "0.3.3"
+pub const VERSION : String = "0.4.0"
 
 pub fn[V : @json.FromJson] from_json(Json) -> IndexMap[String, V] raise @json.JsonDecodeError
 

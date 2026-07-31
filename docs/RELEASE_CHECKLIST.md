@@ -1,6 +1,6 @@
 # IndexMap 上线测试清单
 
-> 包：`aurasuisui/indexmap`（当前工作树 VERSION 为 `0.3.3`）
+> 包：`aurasuisui/indexmap`（VERSION 为 `0.4.0`）
 > 本文件是仓库根目录 `RELEASE_TEST_CHECKLIST.md` 的 IndexMap 落地记录。发布前必须重新执行
 > 文末命令，且所有项目为绿色。
 
@@ -10,8 +10,8 @@
 fuzz 测试现为正式回归门禁；详细根因、桶级证据和修复说明见
 [`BUG-insert-duplicate-key.md`](BUG-insert-duplicate-key.md)。
 
-本次只修复实现、测试和文档，**不升级版本，也不发布 mooncakes**。`from_json` 是已记录但
-尚未发布的公开 API；实际发布应另行完成版本升级与发布核对。
+本次随 **v0.4.0** 发布：实现修复、测试与文档已就位，版本已升级（`from_json` 作为新增公开
+API 触发 minor 升级）。发布前已重跑文末命令，全部为绿色。
 
 ## Tier 0：正确性基础
 

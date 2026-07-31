@@ -1,6 +1,6 @@
 # 缺陷报告：`insert` 曾将已有键误判为新键（已修复）
 
-> 包：`aurasuisui/indexmap`（未发布工作树，VERSION 仍为 `0.3.3`）
+> 包：`aurasuisui/indexmap`（修复随 **v0.4.0** 发布）
 > 发现方式：RELEASE_TEST_CHECKLIST Tier 1 的模型测试与 op-stream fuzz
 > 状态：**已修复并完成完整验证**（2026-07-31）
 
