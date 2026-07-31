@@ -6,46 +6,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 moon check                    # Type check (0 warnings, 0 errors; --deny-warn clean)
-moon test                     # Run all tests (325 = 322 green + 3 red bug-markers)
+moon test                     # Run all in-package tests (currently 221)
 moon test -f "pattern"        # Run matching tests (glob via -f/--filter)
 moon fmt --check              # Format check (CI gate)
 moon fmt                      # Auto-format
 moon info                     # Regenerate pkg.generated.mbti
 moon build                    # Build
 moon test --target <t>        # t = wasm-gc | wasm | js | native (CI tests all four)
-moon bench -p aurasuisui/indexmap   # Statistical benchmarks (perf_bench_test.mbt)
 ```
 
 The CI pipeline (`.github/workflows/ci.yml`): a `check` job runs `moon fmt --check` →
 `moon check --deny-warn` → `moon info && git diff --exit-code`; a `test` job runs
 `moon test` + `moon build` across a `target ∈ {wasm-gc, wasm, js, native} × mode ∈
 {debug, release}` matrix (native installs `gcc`); an `examples` job compiles and runs
-each `cmd/*` example; a `bench` job runs `moon bench --release --target native` and
-uploads the report. The scaling-ratio performance regression gate (`perf-gate*`) runs
-as part of `moon test`. Toolchain is `version: latest` (via `hustcer/setup-moonbit@v1`).
+each `cmd/*` example. Black-box benchmarks and their scaling-ratio regression gate run
+in `indexmap-test-suite`. Toolchain is `version: latest` (via `hustcer/setup-moonbit@v1`).
 
 ## Architecture
 
 IndexMap uses two parallel structures:
 
-- **`buckets: Array[Entry[K, V]?]`** — Robin Hood open-addressing hash table. `None` = empty, `Some` with `hash == TOMBSTONE_HASH (-1)` = tombstone.
+- **`buckets: Array[Entry[K, V]?]`** — Robin Hood open-addressing hash table. `None` = empty and every `Some` is live; deletion uses backward shifting, never tombstones.
 - **`order: Array[K]`** — insertion-order log. Iteration walks this, looks up each key in the hash table.
 - **`positions: Map[K, Int]`** — key → index into `order[]`, enabling O(1) `get_index_of`.
 
 Robin Hood hashing: when inserting and the incoming key has probed farther than the occupant, the incoming key steals the slot. This equalizes probe distances. Each `Entry` stores a `distance` field tracking displacement from its ideal bucket.
 
-Three probe functions power all operations:
-- `probe_find` — simple linear probe, used by `get`/`remove`/`contains`/`get_mut`/`rehash`
-- `robin_hood_find` — Robin Hood probe with tombstone reuse, used by `insert`/`entry`
-- `robin_hood_insert_at` — insert with displacement (rich-get-richer)
+The table has one lookup path and one insertion primitive:
+- `locate` — scans to an empty bucket before reporting a miss; used by all lookup, mutation and rehash paths.
+- `robin_hood_insert_into` — shared Robin Hood displacement primitive for normal insertion and rehashing.
+- `backshift_remove` — compacts displaced entries after deletion so their probe paths remain contiguous.
 
-All deletion creates tombstones (preserving probe chains), then calls `remove_from_order` (O(n) shift-remove that preserves insertion order). Auto-rehash triggers when tombstone ratio exceeds 25%.
+All deletion first compacts the bucket cluster with `backshift_remove`, then calls `remove_from_order` (O(n) shift-remove that preserves insertion order). Capacity never shrinks automatically; use `shrink_to_fit` when desired.
 
 The struct also carries a private `mut version : Int` mutation counter. Every structural mutation bumps it; `iter`/`keys`/`values` snapshot it at creation and abort (`IndexMap: map mutated during iteration`) if it changes mid-iteration (true fail-fast).
 
 `get_mut(key, f)` is authoritative: it re-applies `f`'s result via a fresh `insert`/`remove` — `Some(v)` upserts, `None` removes — so callbacks may safely mutate the map (including triggering a resize).
 
-Key constants: `MIN_CAPACITY = 16`, load factor = 3/4 (0.75), `TOMBSTONE_HASH = -1`, `NO_DISTANCE = -1`.
+Key constants: `MIN_CAPACITY = 16`, load factor = 3/4 (0.75).
 
 ## File Map
 
@@ -61,26 +59,29 @@ Key constants: `MIN_CAPACITY = 16`, load factor = 3/4 (0.75), `TOMBSTONE_HASH = 
 | `src/set_test.mbt` | 52 black-box API tests for IndexSet |
 | `src/arbitrary_test.mbt` | 11 QuickCheck property tests |
 | `src/cmp_builtin_test.mbt` | 7 IndexMap-vs-builtin-Map parity + benign-key probe bound tests |
-| `src/model_wbtest.mbt` | WHITE-BOX model/oracle property test + 8 internal invariants (`_wbtest` reads private fields); holds the duplicate-key bug regression markers |
-| `src/fuzz_wbtest.mbt` | WHITE-BOX op-stream/int-stream fuzz (shares the model oracle); holds a duplicate-key bug regression marker |
+| `src/model_wbtest.mbt` | WHITE-BOX model/oracle property test + bucket-layout invariants (`_wbtest` reads private fields), including deletion-compaction and duplicate-key regressions |
+| `src/fuzz_wbtest.mbt` | WHITE-BOX op-stream/int-stream fuzz (shares the model oracle) |
 | `cmd/*/` | Example packages (lru_cache, config_parse, json_order) — **workspace members** (in `moon.work`, `pkgtype(kind: "executable")`); resolve the local library; run by the `examples` CI job via `moon run cmd/<name>` |
 
 > **Black-box robustness suites (HashDoS, fail-fast abort, perf benchmarks, Rust differential, JSON round-trip) live in the separate `indexmap-test-suite` repository** (走向 1: library holds only white-box + library-specific tests; the suite holds the black-box robustness battery). `cmd/*` examples resolve the **local** library through the workspace (registry-independent).
 
 ## Invariants That Must Hold
 
-- `self.len == count of non-tombstone entries in buckets`
+- `self.len == count of occupied buckets`
 - `self.order.length() == self.len`
 - `self.positions.size() == self.len`
 - `self.positions[key] == index` for each `order[index] == key`
 - `self.mask == self.buckets.length() - 1`
 - `self.buckets.length()` is a power of 2
+- Every entry's stored `distance` equals `(bucket_index - home_bucket) & mask`
+- Every entry has an unbroken occupied probe path from its home bucket
+- A key appears in at most one bucket
 - `self.max_probe_distance >= max(entry.distance for all live entries)`
 - After `sort_by` / `sort_by_key`: call `recalc_max_probe()` to maintain the max_probe_distance invariant
 
 ## Test Conventions
 
-All tests use `@aurasuisui/indexmap.` prefix (black-box). Use `debug_inspect` for expect-test snapshots. For assertions inside loops with varying values, prefer `@test.assert_eq` / `@test.fail` — `moon test -u` generates unstable snapshots when one `debug_inspect` runs N times with different values.
+`*_test.mbt` files use the public `@aurasuisui/indexmap.` prefix (black-box). `*_wbtest.mbt` files are intentional white-box tests that inspect private bucket fields. Use `debug_inspect` for expect-test snapshots. For assertions inside loops with varying values, prefer `@test.assert_eq` / `@test.fail` — `moon test -u` generates unstable snapshots when one `debug_inspect` runs N times with different values.
 
 ```moonbit
 test "descriptive name in english" {

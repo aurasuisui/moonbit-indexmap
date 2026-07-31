@@ -21,7 +21,7 @@ moon fmt     # Format code
 │   ├── lib.mbt           # Public API entry points + VERSION + from_json aliases
 │   ├── map.mbt           # IndexMap[K, V] core (all logic + from_json)
 │   ├── set.mbt           # IndexSet[K] — thin wrapper over IndexMap[K, Unit]
-│   ├── hash.mbt          # Shared hash constants (load factor, sentinels)
+│   ├── hash.mbt          # Shared load-factor constants
 │   ├── map_test.mbt      # Black-box API tests for IndexMap (131 tests)
 │   ├── set_test.mbt      # Black-box API tests for IndexSet (52 tests)
 │   ├── arbitrary_test.mbt # QuickCheck property tests (11 tests)
@@ -36,7 +36,7 @@ moon fmt     # Format code
 │   └── json_order/       #   ToJson key-order demo
 ├── docs/
 │   ├── RELEASE_CHECKLIST.md  # Per-tier release-test status (the release gate)
-│   └── BUG-insert-duplicate-key.md  # Duplicate-key insert defect (blocking, unreleased)
+│   └── BUG-insert-duplicate-key.md  # Duplicate-key defect report and regression evidence
 ├── .github/workflows/ci.yml  # check + target×mode matrix + examples + bench
 ├── moon.work             # Workspace members: `.` + cmd/* (examples resolve local lib)
 ├── README.md
@@ -56,9 +56,9 @@ moon fmt     # Format code
 
 | Rule | Example |
 |------|---------|
-| Functions | `snake_case`: `robin_hood_find`, `get_index_of` |
+| Functions | `snake_case`: `locate`, `get_index_of` |
 | Types | `PascalCase`: `IndexMap`, `OccupiedEntry` |
-| Constants | `UPPER_CASE`: `MIN_CAPACITY`, `TOMBSTONE_HASH` |
+| Constants | `UPPER_CASE`: `MIN_CAPACITY`, `LOAD_FACTOR_NUMERATOR` |
 | Public API docs | `///|` doc comment block |
 | Internal docs | `///|` on internal helpers too |
 | Section separators | `// ---` with label |
@@ -79,17 +79,15 @@ IndexMap[K, V]
 └── positions: Map[K, Int]          ← Key → index lookup (O(1) get_index_of)
 ```
 
-**Buckets** is the hash table. Each slot is `Entry[K, V]?` — `None` means empty, `Some(entry)` means occupied. Deleted entries become **tombstones**: their `hash` is set to `TOMBSTONE_HASH (-1)` but the slot stays `Some`.
+**Buckets** is the hash table. Each slot is `Entry[K, V]?`: `None` means empty and every `Some(entry)` is live. Deletion uses backward-shift compaction, moving later displaced entries back one bucket until it reaches an empty bucket or an entry at its home bucket.
 
-**Order** is a flat array of keys in insertion order. Iteration walks this array, looks up each key in the hash table, and skips keys whose bucket entry is a tombstone.
+**Order** is a flat array of keys in insertion order. Iteration walks this array and looks up every key in the hash table.
 
 ### Key Constants
 
 | Constant | Location | Value | Meaning |
 |----------|----------|-------|---------|
 | `MIN_CAPACITY` | map.mbt | 16 | Minimum bucket count (power of 2) |
-| `NO_DISTANCE` | map.mbt | -1 | Sentinel: entry has never been displaced |
-| `TOMBSTONE_HASH` | map.mbt | -1 | Marker for deleted entries |
 | `LOAD_FACTOR_NUMERATOR` | hash.mbt | 3 | 3/4 = 0.75 load factor |
 | `LOAD_FACTOR_DENOMINATOR` | hash.mbt | 4 | |
 
@@ -102,8 +100,9 @@ Robin Hood improves this: when inserting, if the incoming key has probed **farth
 In our implementation:
 
 - `Entry.distance` records how far from its ideal bucket this entry has been displaced
-- `robin_hood_find(key, hash)` — searches for a key, returning `(bucket_index, found)`. If not found, returns the insertion point (respecting distance ordering and reusing tombstones)
-- `robin_hood_insert_at(entry, start_idx, hash)` — inserts with displacement: if the current slot's entry has shorter distance, steal the slot and continue with the displaced entry
+- `locate(key, hash)` — searches through the next empty bucket before reporting a miss, and remembers the first valid Robin Hood insertion point
+- `robin_hood_insert_into(...)` — shared insertion primitive for normal insertion and rehashing; if the current slot's entry has shorter distance, the incoming entry steals the slot
+- `backshift_remove(index)` — restores contiguous probe paths after removal
 
 ### Internal Function Map
 
@@ -121,16 +120,18 @@ In our implementation:
                     └───────────┘
 ```
 
-**`probe_find(key, hash) -> (index, found)`**
-Simple linear probe. Used by: `get`, `remove`, `contains`, `get_mut`, `rehash`.
-Does NOT skip tombstones for lookup — only checks `entry.hash != TOMBSTONE_HASH`.
+**`locate(key, hash) -> (index, found)`**
+Single lookup path for `get`, `remove`, `contains`, `get_mut`, `insert`, `entry`,
+stale Entry handles and `rehash`. It always probes through the next empty bucket
+before reporting a miss, so key existence never depends on a distance-ordering shortcut.
 
-**`robin_hood_find(key, hash) -> (index, found)`**
-Robin Hood probe with tombstone reuse. Used by: `insert`, `entry`.
-When not found, prefers tombstone slots over empty slots for the insertion point.
+**`robin_hood_insert_into(buckets, mask, entry, start_idx, max_probe) -> Int`**
+Shared insertion primitive. It returns the updated maximum probe distance and is used by both
+regular insertion and rehashing.
 
-**`robin_hood_insert_at(entry, start_idx, hash) -> Unit`**
-Insert with displacement. If `existing.distance < dist`, the new entry steals the slot.
+**`backshift_remove(index) -> Unit`**
+Compacts a deletion hole. Every following entry with `distance > 0` moves back one bucket and
+has its distance decremented; the operation stops at an empty bucket or a home-bucket entry.
 
 **`remove_from_order(key) -> Unit`**
 O(n) shift-remove using `positions: Map[K, Int]`. Shifts elements after the target one slot
@@ -141,26 +142,26 @@ and order-preserving** despite its Rust-indexmap-style name — see README Gotch
 
 **`recalc_max_probe() -> Unit`**
 O(capacity) scan of `buckets[]` recomputing `self.max_probe_distance` from live
-`entry.distance` values (skipping tombstones). Called after `sort_by_key` / `sort_by`, which
+`entry.distance` values. Called after `sort_by_key` / `sort_by`, which
 rebuild `order`/`positions` in place — keeps the "this field always reflects the live buckets"
 invariant explicit rather than relying on the fact that sorting does not move entries.
 
 **`rehash(new_cap) -> Unit`**
-Rebuild buckets from scratch using entries in insertion order. Clears all tombstones.
-Note: duplicates Robin Hood insertion logic — could reuse `robin_hood_insert_at`.
+Rebuild buckets from scratch using entries in insertion order and the shared
+`robin_hood_insert_into` primitive.
 
 **`should_resize_impl(len, capacity) -> Bool`**
-Returns true when `(len + tombstones) / capacity >= 0.75`.
+Returns true when `len / capacity >= 0.75`.
 
 ### Deletion: Single Coherent Path
 
-All deletion goes through `remove(key)` (or directly creates tombstones):
+All deletion goes through `remove(key)` and compacts the affected bucket cluster:
 
-- `remove(key)`: creates tombstone, calls `remove_from_order`
-- `get_mut` with `None` callback: creates tombstone, calls `remove_from_order` (same pattern as `remove`)
+- `remove(key)`: calls `backshift_remove`, then `remove_from_order`
+- `get_mut` with `None` callback: delegates to `remove(key)`
 - `OccupiedEntry::remove()`: delegates to `self.map.remove(self.key)`
 
-The tombstone pattern (setting `entry.hash = TOMBSTONE_HASH` while keeping `Some(...)`) preserves probe chain integrity, and auto-rehash triggers when tombstone ratio > 25%.
+Backward-shift compaction leaves no dead bucket entries and preserves a contiguous probe path from each live entry's home bucket.
 
 ### Iteration: How Order Is Preserved
 
@@ -186,13 +187,15 @@ These must ALWAYS hold true. Breaking any of them will cause bugs:
 
 | Invariant | Enforced By |
 |-----------|-------------|
-| `self.len == count of non-tombstone entries in buckets` | All insert/remove paths |
+| `self.len == count of occupied buckets` | All insert/remove paths |
 | `self.order.length() == self.len` | remove_from_order (shift-remove), sort rebuilds |
 | `self.positions.size() == self.len` | All insert/remove paths that touch order |
 | `self.positions[key] == index` for each `order[index] == key` | insert, remove_from_order, sort rebuilds |
 | `self.mask == self.buckets.length() - 1` | Constructor, resize |
 | `self.buckets.length()` is a power of 2 | `next_power_of_two_impl` |
-| `self.tombstone_count == count of entries with hash == -1` | remove, rehash |
+| `entry.distance == (bucket_index - home_bucket) & mask` | insertion, rehash, backshift removal |
+| Every live entry has an occupied probe path from home to its bucket | insertion, rehash, backshift removal |
+| A key appears in at most one bucket | unified lookup and insertion paths |
 | `self.max_probe_distance >= max(entry.distance for all entries)` | insert, rehash, `recalc_max_probe` (after sort) |
 
 ---
@@ -264,19 +267,19 @@ unstable snapshots when one `debug_inspect` runs N times with N different values
 ### Running Tests
 
 ```bash
-moon test                    # All 277 tests
-moon test --test-filter "bench"   # Only bench tests
-moon test --test-filter "property" # Only property tests
+moon test                    # All in-package tests (currently 221)
+moon test -f "model*"        # Model/oracle and white-box invariants
+moon test -f "fuzz*"         # Deterministic op-stream fuzz
 ```
 
 ---
 
 ## Known Issues & Gotchas
 
-> **Note:** Items 1–6 below are historical records from earlier development cycles
-> and have been resolved. Two caveats: item 7 (`rehash` duplicates
-> `robin_hood_insert_at`) remains a low-priority open item, and item 5's O(1)
-> swap-remove "fix" was later reverted to O(n) shift-remove (see README Gotcha #3).
+> **Note:** Items below are historical records from earlier development cycles.
+> The implementation now shares its Robin Hood insertion primitive between normal
+> insertion and rehashing; item 5's O(1) swap-remove "fix" was reverted to O(n)
+> shift-remove to preserve insertion order (see README Gotcha #3).
 > For current known limitations, see the
 > [README Gotchas section](README.md#gotchas).
 
@@ -287,13 +290,13 @@ moon test --test-filter "property" # Only property tests
 Unused constants and functions removed. Only `LOAD_FACTOR_NUMERATOR` and `LOAD_FACTOR_DENOMINATOR` remain (used by `map.mbt`).
 
 ### 3. ~~Duplicate function alias~~ ✅ Fixed
-`robin_hood_find_or_insertion_point` removed; `entry()` now calls `robin_hood_find` directly.
+The earlier split lookup helpers were removed. `entry()` now shares the single
+exhaustive `locate` path with all other key-based operations.
 
-### 4. ~~get_mut deletion path was inconsistent~~ ✅ Fixed (v0.2.0), refined (v0.3.2)
-v0.2.0 switched to the proper tombstone pattern (was setting bucket to `None`, breaking
-probe chains). v0.3.2 additionally fixed BUG-001: a callback that re-inserts the same key and
-returns `None` no longer has its just-inserted value clobbered by the tombstone — a
-`contains(key)` guard skips the tombstone path. See README Gotcha #1.
+### 4. ~~get_mut deletion path was inconsistent~~ ✅ Fixed and redesigned
+`get_mut` now re-applies its callback result through a fresh `insert` or `remove`, so stale
+bucket indices cannot corrupt the table. `remove` uses backward-shift compaction to preserve
+probe reachability.
 
 ### 5. remove_from_order — O(1) swap-remove attempted, then reverted
 Briefly replaced the O(n) shift-remove with an O(1) swap-remove using a
@@ -305,8 +308,8 @@ is kept for O(1) `get_index_of`; deletion is order-preserving shift-remove.
 ### 6. ~~sort_entries / sort_entries_by were unused~~ ✅ Fixed
 Removed. Sorting is done inline in `sort_by_key` and `sort_by`.
 
-### 7. rehash duplicates robin_hood_insert_at
-The rehash function has its own copy of the Robin Hood insertion loop instead of calling `robin_hood_insert_at`. Low priority — the logic is correct, just duplicated.
+### 7. ~~rehash duplicated Robin Hood insertion~~ ✅ Fixed
+Both normal insertion and `rehash` now call `robin_hood_insert_into`.
 
 ---
 
@@ -345,7 +348,7 @@ The rehash function has its own copy of the Robin Hood insertion loop instead of
 - [x] `get_mut` reworked to an authoritative contract (return value re-applied via a fresh `insert`/`remove`); fixes broken plain deletion, double-decrement, ghost entries, and resize mis-writes
 - [x] `ToJson` keys fixed (`k.to_string()`, canonical for String keys); bound `K : ToJson` → `K : Show`
 - [x] Iterators made truly fail-fast (mutation `version` counter + clear abort)
-- [x] Regression tests for all four fixes; vacuous/misleading tests corrected; reproduced edge cases ported (255 → 277 tests)
+- [x] Regression tests for all four fixes; vacuous/misleading tests corrected; reproduced edge cases ported (255 → 277 tests at the v0.3.3 milestone)
 
 ### [Unreleased] — RELEASE_TEST_CHECKLIST Tier 1/2/3 coverage + test reorganization
 - [x] **`from_json` / `from_json_with`** deserialization (public API, warrants **0.4.0** at release — VERSION/moon.mod still `0.3.3`, **not yet bumped**)
@@ -356,8 +359,8 @@ The rehash function has its own copy of the Robin Hood insertion loop instead of
 - [x] CI hardened: `moon check --deny-warn` + `target × mode` matrix + `examples` job (statistical `bench` job moved to the suite CI, since `perf_bench_test.mbt` now lives there)
 - [x] `cmd/*` migrated to `pkgtype(kind: "executable")` **and re-added to `moon.work`** (the old `options("is-main")` / `version: latest` conflict is resolved by `pkgtype`); examples now resolve the **local** library (registry-independent) and run in the `examples` CI job — fixes the CI failure where `cmd/*` couldn't resolve the unpublished package from mooncakes
 - [x] Test reorganization (走向 1: library minimal + suite strong): dropped `property_test.mbt`/`bench_test.mbt` from the library; moved black-box robustness tests to `indexmap-test-suite`
-- [ ] **BLOCKING:** `insert` can duplicate an existing key under certain insert/remove interleavings (`robin_hood_find` early-stop misses a key the exhaustive `probe_find` finds) — full report in [`docs/BUG-insert-duplicate-key.md`](docs/BUG-insert-duplicate-key.md); model/fuzz tests stay red as regression markers until fixed
-- [ ] Fix the duplicate-key bug, then bump VERSION/moon.mod to `0.4.0`, update the VERSION assertions in `map_test`/suite `stress_test`, regenerate `pkg.generated.mbti`, run `docs/RELEASE_CHECKLIST.md`, and publish to mooncakes.io
+- [x] Duplicate-key corruption repaired: tombstones were replaced by backward-shift deletion, and all key-based operations now share exhaustive `locate`; see [`docs/BUG-insert-duplicate-key.md`](docs/BUG-insert-duplicate-key.md)
+- [ ] Before the next release, decide whether to bump VERSION/moon.mod to `0.4.0` for the unreleased `from_json` API, update VERSION assertions, regenerate `pkg.generated.mbti`, run `docs/RELEASE_CHECKLIST.md`, and publish to mooncakes.io
 
 See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for the full list.
 

@@ -85,7 +85,9 @@ Two parallel structures:
 1. **Robin Hood hash table** (`Array[Entry[K, V]?]`) — O(1) average lookup, reduced probe variance
 2. **Order array** (`Array[K]`) — tracks insertion order for deterministic iteration
 
-Deletion uses tombstone markers to preserve probe chains, with automatic rehash when the tombstone ratio exceeds 25%.
+Deletion uses backward-shift compaction: displaced entries move back until the next entry is at its home
+bucket or the cluster ends. This preserves probe reachability without retaining dead bucket entries.
+`load_factor()` therefore always reports live entries divided by capacity.
 
 ### Compared to built-in Map
 
@@ -156,11 +158,9 @@ property test, fuzz harness, and IndexMap-vs-builtin-Map parity (see
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the full Tier 0–4
 status against the release checklist).
 
-> **Status caveat:** the `from_json` API addition and test-suite reorganization
-> described here are **unreleased** (VERSION is still `0.3.3`). See
-> [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` and the duplicate-key insert bug
-> note in [`docs/BUG-insert-duplicate-key.md`](docs/BUG-insert-duplicate-key.md)
-> before relying on this state.
+> **Status caveat:** the `from_json` API addition, deletion-engine rewrite and
+> test-suite reorganization described here are **unreleased** (VERSION is still
+> `0.3.3`). See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for release status.
 
 ## Examples
 
@@ -186,11 +186,10 @@ moon check            # Type check (0 warnings, 0 errors; --deny-warn clean)
 moon test             # Run all in-package tests (white-box + library-specific)
 moon test --target <t># t = wasm-gc | wasm | js | native (CI tests all four)
 moon fmt              # Format code
-moon bench -p aurasuisui/indexmap   # Statistical benchmarks
 ```
 
 CI: `check` job (fmt / check --deny-warn / mbti drift) + a `target × mode` test
-matrix + an `examples` job + a `bench` job. The black-box robustness battery
+matrix + an `examples` job. The black-box robustness battery
 (HashDoS, fail-fast, perf, Rust differential, JSON round-trip) lives in
 [`indexmap-test-suite`](https://github.com/aurasuisui/indexmap-test-suite). See
 [CONTRIBUTING.md](CONTRIBUTING.md) for project layout, roadmap, and contribution

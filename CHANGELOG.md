@@ -16,6 +16,11 @@ All notable changes to moonbit-indexmap will be documented in this file.
     bump (0.4.0)** at release.
 
 ### Changed
+- **Reworked deletion and lookup internals.** Removed tombstones and the
+  tombstone-cleanup rehash path. `remove` now uses backward-shift compaction,
+  `load_factor()` is strictly `len / capacity`, and a unified exhaustive
+  `locate` path serves lookup, insertion, Entry and rehash operations. Normal
+  insertion and rehash share `robin_hood_insert_into`.
 - Replaced the 14 deprecated multi-trait-bound dot-calls with qualified calls
   (`Hash::hash`, `Hash::hash_combine`, `Show::output`, `Show::to_string`,
   `ToJson::to_json`, `Compare::compare`). `moon check --deny-warn` is now clean;
@@ -70,13 +75,13 @@ repository. Net effect in this repo:
 - `from_json` round-trip + golden + Rust `indexmap` differential (in the **suite**
   as `tests/json_roundtrip_test.mbt` + `tests/rust_diff_test.mbt`).
 
-### Known issues
-- **`insert` can duplicate a key** under certain insert/remove interleavings:
-  `robin_hood_find`'s Robin Hood early-stop may miss an existing key that the
-  exhaustive `probe_find` finds, so `insert` returns `None` and appends a
-  duplicate (wrong return value; `len`/`positions` desync). Reproduced by the
-  model/fuzz tests (`moon test -f "*8000*"`). **Must be fixed before release**;
-  the model/fuzz tests stay red until then.
+### Fixed
+- **Duplicate-key insert corruption.** Tombstone reuse could create a bucket
+  layout where the insertion-only early-stop probe missed an existing key found
+  by ordinary lookups, returning `None` and appending a duplicate key. The
+  tombstone-free deletion engine and unified `locate` path remove that split.
+  The 8000-step model, insert-heavy model and 60-seed fuzz regressions are now
+  required to pass; see `docs/BUG-insert-duplicate-key.md`.
 
 ## [0.3.3] - 2026-07-22
 
