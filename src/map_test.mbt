@@ -1859,7 +1859,7 @@ test "D2 get_mut None deletes an existing key" {
 
 ///|
 // D2: a callback that removes the key itself then returns None must not
-// double-decrement len or double-count the tombstone.
+// double-decrement len or corrupt the insertion-order metadata.
 test "D2 get_mut callback removes same key then None stays consistent" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
@@ -2085,14 +2085,14 @@ test "resize cascade preserves all entries" {
 }
 
 ///|
-// sort_by_key over a map that contains tombstones (a delete before sorting).
-test "sort_by_key works with tombstones present" {
+// sort_by_key after a deletion preserves all remaining entries.
+test "sort_by_key works after deletion compaction" {
   let map = @aurasuisui/indexmap.new()
   map.insert("c", 3) |> ignore
   map.insert("a", 1) |> ignore
   map.insert("x", 99) |> ignore
   map.insert("b", 2) |> ignore
-  map.remove("x") |> ignore // leaves a tombstone
+  map.remove("x") |> ignore
   map.sort_by_key()
   debug_inspect(
     map.keys().collect(),
@@ -2104,8 +2104,8 @@ test "sort_by_key works with tombstones present" {
 }
 
 ///|
-// copy() of a map with tombstones preserves only the live entries.
-test "copy with tombstones preserves live entries" {
+// copy() after deletion preserves only the remaining entries.
+test "copy after deletion preserves live entries" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
@@ -2123,8 +2123,8 @@ test "copy with tombstones preserves live entries" {
 }
 
 ///|
-// drain() over a map with tombstones returns only the live entries in order.
-test "drain with tombstones returns live entries in order" {
+// drain() after deletion returns only the remaining entries in order.
+test "drain after deletion returns live entries in order" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
@@ -2136,8 +2136,8 @@ test "drain with tombstones returns live entries in order" {
 }
 
 ///|
-// retain() over a map with tombstones keeps the matching live entries.
-test "retain with tombstones keeps matching entries" {
+// retain() after deletion keeps the matching remaining entries.
+test "retain after deletion keeps matching entries" {
   let map = @aurasuisui/indexmap.new()
   map.insert("a", 1) |> ignore
   map.insert("b", 2) |> ignore
@@ -2151,6 +2151,23 @@ test "retain with tombstones keeps matching entries" {
       #|["c", "d"]
     ),
   )
+}
+
+///|
+test "load_factor immediately reflects live entries after deletion" {
+  let map = @aurasuisui/indexmap.IndexMap::with_capacity(16)
+  let mut i = 0
+  while i < 8 {
+    map.insert(i, i) |> ignore
+    i = i + 1
+  }
+  debug_inspect(map.load_factor() == 0.5, content="true")
+  let mut j = 0
+  while j < 4 {
+    map.remove(j) |> ignore
+    j = j + 1
+  }
+  debug_inspect(map.load_factor() == 0.25, content="true")
 }
 
 ///|

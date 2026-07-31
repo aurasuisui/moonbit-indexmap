@@ -7,7 +7,7 @@
 //
 // `_wbtest.mbt` files compile as part of the package, so this file can both
 // name the private `IndexMap` type in helper signatures AND read its private
-// fields (`buckets`, `order`, `positions`, `mask`, `len`, `tombstone_count`,
+// fields (`buckets`, `order`, `positions`, `mask`, `len`,
 // `max_probe_distance`). That lets one driver do two things at once:
 //
 //   1. Drive the SAME operation sequence through the real `IndexMap` and a
@@ -101,6 +101,18 @@ fn oracle_get(arr : Array[(Int, Int)], k : Int) -> Int? {
 /// Model `contains`.
 fn oracle_contains(arr : Array[(Int, Int)], k : Int) -> Bool {
   oracle_index_of(arr, k) is Some(_)
+}
+
+///|
+/// Find a distinct Int whose hash maps to `home` for a table with `mask`.
+/// Used to make deterministic collision and wraparound bucket tests without
+/// relying on a particular concrete hash value.
+fn int_key_for_home(start : Int, mask : Int, home : Int) -> Int {
+  let mut key = start
+  while (Hash::hash(key) & mask) != home {
+    key = key + 1
+  }
+  key
 }
 
 ///|
@@ -316,8 +328,10 @@ fn apply_op(
 ///   order.length() == len;  positions.length() == len;
 ///   positions[order[i]] == i;  mask == buckets.length()-1;
 ///   buckets.length() is a power of two;  live buckets == len;
-///   tombstone slots == tombstone_count;  max_probe_distance >= max live dist;
-///   every live bucket key is tracked in positions.
+///   every stored distance equals its physical distance from the home bucket;
+///   every probe path from home to entry is contiguous; no duplicate bucket key
+///   exists; max_probe_distance >= max live distance; every bucket key is
+///   tracked in positions.
 fn check_internal_invariants(m : IndexMap[Int, Int]) -> Unit raise {
   // counters agree
   @test.assert_eq(m.order.length(), m.len)
@@ -336,28 +350,39 @@ fn check_internal_invariants(m : IndexMap[Int, Int]) -> Unit raise {
   // bucket-level accounting
   let mut b = 0
   let mut live = 0
-  let mut tomb = 0
   let mut max_d = 0
+  let seen : Map[Int, Bool] = Map([])
   while b < cap {
     match m.buckets[b] {
-      Some(e) =>
-        if e.hash == TOMBSTONE_HASH {
-          tomb = tomb + 1
-        } else {
-          live = live + 1
-          if e.distance > max_d {
-            max_d = e.distance
+      Some(e) => {
+        live = live + 1
+        @test.assert_eq(e.distance, (b - (e.hash & m.mask)) & m.mask)
+        let mut probe = e.hash & m.mask
+        let mut steps = 0
+        while steps < e.distance {
+          if m.buckets[probe] is None {
+            @test.fail("live entry has a hole in its probe path")
           }
-          if m.positions.get(e.key) is None {
-            @test.fail("live bucket entry key missing from positions")
-          }
+          probe = (probe + 1) & m.mask
+          steps = steps + 1
         }
+        if e.distance > max_d {
+          max_d = e.distance
+        }
+        if m.positions.get(e.key) is None {
+          @test.fail("live bucket entry key missing from positions")
+        }
+        if seen.get(e.key) is Some(_) {
+          @test.fail("duplicate key appears in multiple buckets")
+        }
+        seen[e.key] = true
+      }
       None => ()
     }
     b = b + 1
   }
   @test.assert_eq(live, m.len)
-  @test.assert_eq(tomb, m.tombstone_count)
+  @test.assert_eq(seen.length(), m.len)
   if m.max_probe_distance < max_d {
     @test.fail("max_probe_distance is below an actual live entry distance")
   }
@@ -585,11 +610,11 @@ test "wb: invariants hold on an empty map" {
   @test.assert_eq(m.positions.length(), 0)
   @test.assert_eq(m.buckets.length(), 16)
   @test.assert_eq(m.mask, 15)
-  @test.assert_eq(m.tombstone_count, 0)
+  @test.assert_eq(m.max_probe_distance, 0)
 }
 
 ///|
-test "wb: removal leaves tombstones but live/tombstone counts stay exact" {
+test "wb: removal compacts clusters and preserves every invariant" {
   let m : IndexMap[Int, Int] = IndexMap::new()
   let mut i = 0
   while i < 20 {
@@ -597,7 +622,7 @@ test "wb: removal leaves tombstones but live/tombstone counts stay exact" {
     i = i + 1
   }
   check_internal_invariants(m)
-  // remove half -> tombstones; live count must still equal len throughout
+  // Remove half while validating that no vacant bucket is left in a cluster.
   let mut j = 0
   while j < 20 {
     if j % 2 == 0 {
@@ -610,35 +635,97 @@ test "wb: removal leaves tombstones but live/tombstone counts stay exact" {
 }
 
 ///|
-test "wb: the 25% tombstone threshold triggers a clearing rehash" {
+test "wb: repeated delete and refill keeps capacity stable without cleanup rehash" {
   let m : IndexMap[Int, Int] = IndexMap::new()
   let mut i = 0
   while i < 50 {
     m.insert(i, i) |> ignore
     i = i + 1
   }
-  // Remove one at a time. Once tombstones exceed 25% of the bucket count, an
-  // in-place rehash fires and resets tombstone_count; so the count must DROP at
-  // least once (proving the rehash fired) while staying accurate throughout.
-  let mut saw_reset = false
-  let mut prev_tomb = 0
+  let cap_before = m.capacity()
   let mut j = 0
   while j < 40 {
     m.remove(j) |> ignore
-    let t = m.tombstone_count
-    if t < prev_tomb {
-      saw_reset = true
-    }
-    prev_tomb = t
     check_internal_invariants(m)
     j = j + 1
   }
   @test.assert_eq(m.len, 10)
-  if !saw_reset {
-    @test.fail(
-      "expected the 25% tombstone threshold to trigger a clearing rehash",
-    )
+  let mut k = 50
+  while k < 90 {
+    m.insert(k, k) |> ignore
+    check_internal_invariants(m)
+    k = k + 1
   }
+  @test.assert_eq(m.capacity(), cap_before)
+  @test.assert_eq(m.len, 50)
+}
+
+///|
+test "wb: deletion backshifts a cluster across the mask boundary" {
+  let m : IndexMap[Int, Int] = IndexMap::with_capacity(16)
+  let a = int_key_for_home(0, 15, 14)
+  let b = int_key_for_home(a + 1, 15, 14)
+  let c = int_key_for_home(b + 1, 15, 14)
+  m.insert(a, 10) |> ignore
+  m.insert(b, 20) |> ignore
+  m.insert(c, 30) |> ignore
+  match m.buckets[0] {
+    Some(e) => {
+      @test.assert_eq(e.key, c)
+      @test.assert_eq(e.distance, 2)
+    }
+    None => @test.fail("expected the collision cluster to wrap at bucket zero")
+  }
+  @test.assert_eq(m.remove(b), Some(20))
+  match m.buckets[15] {
+    Some(e) => {
+      @test.assert_eq(e.key, c)
+      @test.assert_eq(e.distance, 1)
+    }
+    None =>
+      @test.fail("expected the displaced entry to backshift into bucket 15")
+  }
+  match m.buckets[0] {
+    None => ()
+    Some(_) =>
+      @test.fail("bucket zero should be empty after backshift compaction")
+  }
+  check_internal_invariants(m)
+}
+
+///|
+test "wb: locate updates an existing key beyond a malformed distance drop" {
+  // This intentionally constructs the historical 1 -> 0 -> 2 distance shape.
+  // Normal operations can no longer create it, but `locate` must still scan to
+  // the empty bucket so a future invariant regression cannot duplicate `b`.
+  let m : IndexMap[Int, Int] = IndexMap::with_capacity(16)
+  let anchor = int_key_for_home(0, 15, 3)
+  let a = int_key_for_home(anchor + 1, 15, 3)
+  let c = int_key_for_home(a + 1, 15, 5)
+  let b = int_key_for_home(c + 1, 15, 4)
+  m.buckets = Array::make(16, None)
+  m.order = [anchor, a, c, b]
+  m.positions = Map([])
+  m.positions[anchor] = 0
+  m.positions[a] = 1
+  m.positions[c] = 2
+  m.positions[b] = 3
+  m.len = 4
+  m.mask = 15
+  m.max_probe_distance = 2
+  m.buckets[3] = Some({
+    key: anchor,
+    value: 5,
+    hash: Hash::hash(anchor),
+    distance: 0,
+  })
+  m.buckets[4] = Some({ key: a, value: 10, hash: Hash::hash(a), distance: 1 })
+  m.buckets[5] = Some({ key: c, value: 20, hash: Hash::hash(c), distance: 0 })
+  m.buckets[6] = Some({ key: b, value: 30, hash: Hash::hash(b), distance: 2 })
+  @test.assert_eq(m.insert(b, 99), Some(30))
+  @test.assert_eq(m.len(), 4)
+  @test.assert_eq(m.get(b), Some(99))
+  @test.assert_eq(m.iter().collect(), [(anchor, 5), (a, 10), (c, 20), (b, 99)])
 }
 
 ///|
@@ -655,10 +742,7 @@ test "wb: max_probe_distance exactly reflects the buckets right after a rehash" 
   let mut b = 0
   while b < m.buckets.length() {
     match m.buckets[b] {
-      Some(e) =>
-        if e.hash != TOMBSTONE_HASH && e.distance > max_d {
-          max_d = e.distance
-        }
+      Some(e) => if e.distance > max_d { max_d = e.distance }
       None => ()
     }
     b = b + 1

@@ -8,10 +8,6 @@
 const MIN_CAPACITY : Int = 16
 
 ///|
-/// Sentinel indicating no probe distance limit — entry has never been displaced.
-const NO_DISTANCE : Int = -1
-
-///|
 /// An entry stored in the hash table buckets.
 /// Uses `TraitField` pattern — key and hash are immutable to maintain
 /// probe-chain integrity, while distance is mutable for Robin Hood insertion.
@@ -23,11 +19,6 @@ struct Entry[K, V] {
 } derive(Debug)
 
 ///|
-/// The sentinel hash value used for tombstone (deleted) entries.
-/// Using -1 as a marker that won't collide with real hash values.
-const TOMBSTONE_HASH : Int = -1
-
-///|
 /// The main IndexMap type.
 struct IndexMap[K, V] {
   mut buckets : Array[Entry[K, V]?]
@@ -35,7 +26,6 @@ struct IndexMap[K, V] {
   mut positions : Map[K, Int]
   mut len : Int
   mut mask : Int
-  mut tombstone_count : Int
   mut max_probe_distance : Int
   mut version : Int
 }
@@ -94,35 +84,13 @@ fn next_power_of_two_impl(n : Int) -> Int {
 }
 
 ///|
-/// Simple probe to find an existing key.
-fn[K : Eq, V] IndexMap::probe_find(
-  self : IndexMap[K, V],
-  key : K,
-  hash : Int,
-) -> (Int, Bool) {
-  let start = hash & self.mask
-  let mut i = start
-  while true {
-    match self.buckets[i] {
-      None => return (i, false)
-      Some(entry) =>
-        if entry.hash != TOMBSTONE_HASH &&
-          entry.hash == hash &&
-          entry.key == key {
-          return (i, true)
-        }
-    }
-    i = (i + 1) & self.mask
-    if i == start {
-      return (i, false)
-    }
-  }
-  (0, false)
-}
-
-///|
-/// Find a bucket using Robin Hood hashing.
-fn[K : Eq, V] IndexMap::robin_hood_find(
+/// Locate an existing key or the first Robin Hood displacement candidate.
+///
+/// The probe always continues to an empty bucket before reporting a miss. This
+/// makes key existence independent of the probe-distance ordering invariant;
+/// the first bucket whose resident has travelled less than the candidate is
+/// merely remembered as the insertion starting point.
+fn[K : Eq, V] IndexMap::locate(
   self : IndexMap[K, V],
   key : K,
   hash : Int,
@@ -130,96 +98,133 @@ fn[K : Eq, V] IndexMap::robin_hood_find(
   let start = hash & self.mask
   let mut i = start
   let mut dist = 0
-  let mut first_tombstone : Int = -1
-
+  let mut first_rich_slot : Int = -1
   while true {
     match self.buckets[i] {
       None => {
-        let insert_at = if first_tombstone >= 0 { first_tombstone } else { i }
+        let insert_at = if first_rich_slot >= 0 { first_rich_slot } else { i }
         return (insert_at, false)
       }
       Some(entry) => {
-        if entry.hash == TOMBSTONE_HASH {
-          if first_tombstone < 0 {
-            first_tombstone = i
-          }
-        } else if entry.hash == hash && entry.key == key {
+        if entry.hash == hash && entry.key == key {
           return (i, true)
         }
-        if entry.distance >= 0 && entry.distance < dist {
-          let insert_at = if first_tombstone >= 0 { first_tombstone } else { i }
-          return (insert_at, false)
+        if first_rich_slot < 0 && entry.distance < dist {
+          first_rich_slot = i
         }
       }
     }
     i = (i + 1) & self.mask
     dist = dist + 1
     if i == start {
-      return (i, false)
+      abort("IndexMap: locate found no free slot (table full)")
     }
   }
   (0, false)
 }
 
 ///|
-/// Insert an entry at the given bucket index using Robin Hood displacement.
-fn[K, V] IndexMap::robin_hood_insert_at(
-  self : IndexMap[K, V],
+/// Insert an entry into `buckets` using Robin Hood displacement and return
+/// the updated maximum probe distance. Both regular insertion and rehashing
+/// use this one primitive so their bucket layouts cannot diverge.
+fn[K, V] robin_hood_insert_into(
+  buckets : Array[Entry[K, V]?],
+  mask : Int,
   entry_param : Entry[K, V],
   start_idx : Int,
-  hash : Int,
-) -> Unit {
+  max_probe : Int,
+) -> Int {
   let mut entry = entry_param
   let mut i = start_idx
-  let mut dist = if start_idx == (hash & self.mask) {
+  let mut dist = if start_idx == (entry.hash & mask) {
     0
   } else {
-    (start_idx - (hash & self.mask)) & self.mask
+    (start_idx - (entry.hash & mask)) & mask
   }
-  // Defense in depth: the load-factor invariant guarantees a free or tombstone
-  // slot, so this loop terminates well within `cap` steps. The guard turns a
-  // would-be infinite loop (table driven to 100% live occupancy) into an abort.
-  let cap = self.buckets.length()
+  let mut new_max_probe = max_probe
+  // The load-factor invariant guarantees an empty slot. The guard turns a
+  // future violation into an abort instead of an unbounded loop.
+  let cap = buckets.length()
   let mut steps = 0
 
   while true {
-    if steps > cap {
-      abort("IndexMap: robin_hood_insert_at found no free slot (table full)")
+    if steps >= cap {
+      abort("IndexMap: robin_hood_insert_into found no free slot (table full)")
     }
     steps = steps + 1
-    match self.buckets[i] {
+    match buckets[i] {
       None => {
         entry.distance = dist
-        self.buckets[i] = Some(entry)
-        if dist > self.max_probe_distance {
-          self.max_probe_distance = dist
+        buckets[i] = Some(entry)
+        if dist > new_max_probe {
+          new_max_probe = dist
         }
-        return
+        return new_max_probe
       }
-      Some(existing) => {
-        if existing.hash == TOMBSTONE_HASH {
+      Some(existing) =>
+        if existing.distance < dist {
           entry.distance = dist
-          self.buckets[i] = Some(entry)
-          self.tombstone_count = self.tombstone_count - 1
-          if dist > self.max_probe_distance {
-            self.max_probe_distance = dist
-          }
-          return
-        }
-        if existing.distance >= 0 && existing.distance < dist {
-          entry.distance = dist
-          self.buckets[i] = Some(entry)
-          if dist > self.max_probe_distance {
-            self.max_probe_distance = dist
+          buckets[i] = Some(entry)
+          if dist > new_max_probe {
+            new_max_probe = dist
           }
           entry = existing
           dist = existing.distance + 1
         } else {
           dist = dist + 1
         }
+    }
+    i = (i + 1) & mask
+  }
+  0
+}
+
+///|
+/// Insert an entry at the given bucket index using Robin Hood displacement.
+fn[K, V] IndexMap::robin_hood_insert_at(
+  self : IndexMap[K, V],
+  entry : Entry[K, V],
+  start_idx : Int,
+) -> Unit {
+  self.max_probe_distance = robin_hood_insert_into(
+    self.buckets,
+    self.mask,
+    entry,
+    start_idx,
+    self.max_probe_distance,
+  )
+}
+
+///|
+/// Remove the entry at `removed_idx` without leaving a tombstone.
+///
+/// Shift following displaced entries back by one bucket until the next bucket
+/// is empty or contains an entry at its home bucket. This preserves the
+/// contiguous probe path from every entry's home bucket after deletion.
+fn[K, V] IndexMap::backshift_remove(
+  self : IndexMap[K, V],
+  removed_idx : Int,
+) -> Unit {
+  let mut hole = removed_idx
+  let mut next = (hole + 1) & self.mask
+  while true {
+    match self.buckets[next] {
+      None => {
+        self.buckets[hole] = None
+        return
+      }
+      Some(entry) => {
+        if entry.distance == 0 {
+          self.buckets[hole] = None
+          return
+        }
+        let shifted = entry
+        shifted.distance = shifted.distance - 1
+        self.buckets[hole] = Some(shifted)
+        hole = next
+        next = (next + 1) & self.mask
       }
     }
-    i = (i + 1) & self.mask
   }
 }
 
@@ -258,7 +263,7 @@ fn[K : Hash + Eq, V] IndexMap::resize(
 }
 
 ///|
-/// Rebuild the hash table in-place, clearing all tombstones.
+/// Rebuild the hash table in-place from insertion-order entries.
 fn[K : Hash + Eq, V] IndexMap::rehash(
   self : IndexMap[K, V],
   new_cap : Int,
@@ -272,49 +277,28 @@ fn[K : Hash + Eq, V] IndexMap::rehash(
   let mut pos = 0
   while pos < self.order.length() {
     let key = self.order[pos]
-    let (old_idx, found) = self.probe_find(key, Hash::hash(key))
+    let (old_idx, found) = self.locate(key, Hash::hash(key))
     if found {
       match self.buckets[old_idx] {
         Some(entry) => {
-          let mut dist = 0
-          let mut i = entry.hash & new_mask
-          let mut to_insert = {
-            key: entry.key,
-            value: entry.value,
-            hash: entry.hash,
-            distance: 0,
-          }
-          while true {
-            match new_buckets[i] {
-              None => {
-                to_insert.distance = dist
-                new_buckets[i] = Some(to_insert)
-                new_len = new_len + 1
-                if dist > new_max_probe {
-                  new_max_probe = dist
-                }
-                break
-              }
-              Some(existing) => {
-                let cur = existing
-                if cur.distance >= 0 && cur.distance < dist {
-                  to_insert.distance = dist
-                  new_buckets[i] = Some(to_insert)
-                  if dist > new_max_probe {
-                    new_max_probe = dist
-                  }
-                  to_insert = cur
-                  dist = cur.distance + 1
-                } else {
-                  dist = dist + 1
-                }
-              }
-            }
-            i = (i + 1) & new_mask
-          }
+          new_max_probe = robin_hood_insert_into(
+            new_buckets,
+            new_mask,
+            {
+              key: entry.key,
+              value: entry.value,
+              hash: entry.hash,
+              distance: 0,
+            },
+            entry.hash & new_mask,
+            new_max_probe,
+          )
+          new_len = new_len + 1
         }
-        None => ()
+        None => abort("IndexMap: rehash order key is missing from buckets")
       }
+    } else {
+      abort("IndexMap: rehash order key is missing from buckets")
     }
     pos = pos + 1
   }
@@ -322,7 +306,6 @@ fn[K : Hash + Eq, V] IndexMap::rehash(
   self.buckets = new_buckets
   self.mask = new_mask
   self.len = new_len
-  self.tombstone_count = 0
   self.max_probe_distance = new_max_probe
 }
 
@@ -356,7 +339,6 @@ pub fn[K : Hash + Eq, V] IndexMap::with_capacity(cap : Int) -> IndexMap[K, V] {
     positions: Map([], capacity=real_cap),
     len: 0,
     mask,
-    tombstone_count: 0,
     max_probe_distance: 0,
     version: 0,
   }
@@ -405,8 +387,7 @@ pub fn[K, V] IndexMap::load_factor(self : IndexMap[K, V]) -> Double {
   if self.buckets.length() == 0 {
     0.0
   } else {
-    (self.len + self.tombstone_count).to_double() /
-    self.buckets.length().to_double()
+    self.len.to_double() / self.buckets.length().to_double()
   }
 }
 
@@ -429,10 +410,10 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
 ) -> V? {
   let hash = Hash::hash(key)
   self.version = self.version + 1
-  if should_resize_impl(self.len + self.tombstone_count, self.buckets.length()) {
+  if should_resize_impl(self.len, self.buckets.length()) {
     self.resize(self.buckets.length() * 2)
   }
-  let (bucket_idx, found) = self.robin_hood_find(key, hash)
+  let (bucket_idx, found) = self.locate(key, hash)
   if found {
     match self.buckets[bucket_idx] {
       Some(entry) => {
@@ -449,8 +430,8 @@ pub fn[K : Hash + Eq, V] IndexMap::insert(
       None => return None
     }
   } else {
-    let new_entry = { key, value, hash, distance: NO_DISTANCE }
-    self.robin_hood_insert_at(new_entry, bucket_idx, hash)
+    let new_entry = { key, value, hash, distance: 0 }
+    self.robin_hood_insert_at(new_entry, bucket_idx)
     self.order.push(key)
     self.positions[key] = self.order.length() - 1
     self.len = self.len + 1
@@ -476,7 +457,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
   f : (V?) -> V?,
 ) -> Unit {
   let hash = Hash::hash(key)
-  let (idx, found) = self.probe_find(key, hash)
+  let (idx, found) = self.locate(key, hash)
   // Snapshot the current value BEFORE the callback runs; the callback may mutate
   // the map, so `idx` must not be reused afterwards.
   let current : V? = if found {
@@ -497,7 +478,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get_mut(
 /// Get a value associated with `key`.
 pub fn[K : Hash + Eq, V] IndexMap::get(self : IndexMap[K, V], key : K) -> V? {
   let hash = Hash::hash(key)
-  let (idx, found) = self.probe_find(key, hash)
+  let (idx, found) = self.locate(key, hash)
   if found {
     match self.buckets[idx] {
       Some(entry) => Some(entry.value)
@@ -512,7 +493,7 @@ pub fn[K : Hash + Eq, V] IndexMap::get(self : IndexMap[K, V], key : K) -> V? {
 /// Remove a key from the map, returning the value if it was present.
 pub fn[K : Hash + Eq, V] IndexMap::remove(self : IndexMap[K, V], key : K) -> V? {
   let hash = Hash::hash(key)
-  let (idx, found) = self.probe_find(key, hash)
+  let (idx, found) = self.locate(key, hash)
   if !found {
     return None
   }
@@ -521,19 +502,9 @@ pub fn[K : Hash + Eq, V] IndexMap::remove(self : IndexMap[K, V], key : K) -> V? 
     Some(entry) => {
       let removed_value = entry.value
       self.version = self.version + 1
-      self.buckets[idx] = Some({
-        key: entry.key,
-        value: entry.value,
-        hash: TOMBSTONE_HASH,
-        distance: NO_DISTANCE,
-      })
-      self.tombstone_count = self.tombstone_count + 1
+      self.backshift_remove(idx)
       self.len = self.len - 1
       self.remove_from_order(key)
-      let total = self.len + self.tombstone_count
-      if self.tombstone_count * 4 > self.buckets.length() && total > 0 {
-        self.rehash(self.buckets.length())
-      }
       return Some(removed_value)
     }
   }
@@ -545,7 +516,7 @@ pub fn[K : Hash + Eq, V] IndexMap::contains(
   self : IndexMap[K, V],
   key : K,
 ) -> Bool {
-  let (_, found) = self.probe_find(key, Hash::hash(key))
+  let (_, found) = self.locate(key, Hash::hash(key))
   found
 }
 
@@ -557,7 +528,6 @@ pub fn[K : Hash + Eq, V] IndexMap::clear(self : IndexMap[K, V]) -> Unit {
   self.order = []
   self.positions = Map([])
   self.len = 0
-  self.tombstone_count = 0
   self.max_probe_distance = 0
   self.version = self.version + 1
 }
@@ -582,7 +552,6 @@ pub fn[K : Hash + Eq, V] IndexMap::copy(
     positions: positions_copy,
     len: self.len,
     mask: self.mask,
-    tombstone_count: self.tombstone_count,
     max_probe_distance: self.max_probe_distance,
     version: 0,
   }
@@ -625,7 +594,7 @@ pub fn[K : Hash + Eq, V] IndexMap::entry(
   key : K,
 ) -> EntryView[K, V] {
   let hash = Hash::hash(key)
-  let (_, found) = self.robin_hood_find(key, hash)
+  let (_, found) = self.locate(key, hash)
   if found {
     Occupied({ map: self, key, hash })
   } else {
@@ -638,7 +607,7 @@ pub fn[K : Hash + Eq, V] IndexMap::entry(
 /// Re-probes by key, so a stale handle (the map mutated after `entry()` was
 /// called) cannot return another key's value.
 pub fn[K : Eq, V] OccupiedEntry::get(self : OccupiedEntry[K, V]) -> V {
-  let (idx, found) = self.map.probe_find(self.key, self.hash)
+  let (idx, found) = self.map.locate(self.key, self.hash)
   if !found {
     abort("OccupiedEntry: key is no longer present in the map")
   }
@@ -656,7 +625,7 @@ pub fn[K : Eq, V] OccupiedEntry::insert(
   self : OccupiedEntry[K, V],
   value : V,
 ) -> V {
-  let (idx, found) = self.map.probe_find(self.key, self.hash)
+  let (idx, found) = self.map.locate(self.key, self.hash)
   if !found {
     abort("OccupiedEntry: key is no longer present in the map")
   }
@@ -963,10 +932,7 @@ fn[K, V] IndexMap::recalc_max_probe(self : IndexMap[K, V]) -> Unit {
   let mut bi = 0
   while bi < self.buckets.length() {
     match self.buckets[bi] {
-      Some(e) =>
-        if e.distance > max_d && e.hash != TOMBSTONE_HASH {
-          max_d = e.distance
-        }
+      Some(e) => if e.distance > max_d { max_d = e.distance }
       None => ()
     }
     bi = bi + 1
